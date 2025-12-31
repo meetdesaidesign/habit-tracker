@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Habit App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <div class="empty-state" data-name="Empty States" data-node-id="42:1420">
+      <div class="main-container" data-name="Main Container" data-node-id="42:1421">
+        <div class="illustration-container" data-name="illustration" data-node-id="44:3168">
+          <img
+            src="http://localhost:3845/assets/0db2e0a052d89fe7c9e8b44737232586a46d24e7.png"
+            alt=""
+            class="illustration-image"
+          />
+        </div>
+        <div class="text-container" data-name="Container" data-node-id="42:1439">
+          <h2 class="heading" data-node-id="42:1440">
+            You don't have any habits yet
+          </h2>
+          <p class="description" data-node-id="42:1441">
+            Once you add a few, you can arrange them into a<br />
+            stack you can follow daily.
+          </p>
+        </div>
+        <button class="add-button" data-name="Button" data-node-id="42:1442">
+          <img
+            src="http://localhost:3845/assets/7a00d8f0734c7a9a847e139bbfab63c2baf86837.svg"
+            alt=""
+            class="plus-icon"
+            data-name="plus"
+            data-node-id="42:1443"
+          />
+          <span class="button-text" data-node-id="42:1446">Add your first habit</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- New Habit Form Screen -->
+    <div class="new-habit-screen hidden" data-name="Desktop Frame" data-node-id="42:2203">
+      <div class="new-habit-container" data-name="new habit" data-node-id="42:2204">
+        <div class="new-habit-content" data-node-id="42:2205">
+          <div class="header-section" data-node-id="42:2206">
+            <div class="icon-header" data-node-id="42:2207">
+              <div class="icon-circle" data-node-id="42:2208">
+                <div class="icon-inner" data-name="database" data-node-id="42:2209">
+                  <img
+                    src="http://localhost:3845/assets/b3dad546ec36f92f32be5bcb6a3d7ec63ab013f9.svg"
+                    alt=""
+                    class="database-icon"
+                  />
+                </div>
+              </div>
+            </div>
+            <div class="color-palette" data-node-id="42:2213">
+              <div class="color-swatch selected" data-color="#f9736f" data-node-id="42:2214">
+                <div class="color-swatch-inner" data-node-id="42:2215"></div>
+                <div class="color-swatch-check" data-node-id="42:2216"></div>
+              </div>
+              <div class="color-swatch" data-color="#fb933c" data-node-id="42:2217"></div>
+              <div class="color-swatch" data-color="#fbbf23" data-node-id="42:2218"></div>
+              <div class="color-swatch" data-color="#facc14" data-node-id="42:2219"></div>
+              <div class="color-swatch" data-color="#a3e634" data-node-id="42:2220"></div>
+              <div class="color-swatch" data-color="#49de80" data-node-id="42:2221"></div>
+              <div class="color-swatch" data-color="#2ed69b" data-node-id="42:2222"></div>
+              <div class="color-swatch" data-color="#2dd4c0" data-node-id="42:2223"></div>
+              <div class="color-swatch" data-color="#24d3ee" data-node-id="42:2224"></div>
+              <div class="color-swatch" data-color="#38bdf8" data-node-id="42:2225"></div>
+              <div class="color-swatch" data-color="#61a5f8" data-node-id="42:2226"></div>
+              <div class="color-swatch" data-color="#818cf8" data-node-id="42:2227"></div>
+              <div class="color-swatch" data-color="#a68cfa" data-node-id="42:2228"></div>
+              <div class="color-swatch" data-color="#c085fd" data-node-id="42:2229"></div>
+              <div class="color-swatch" data-color="#e979f9" data-node-id="42:2230"></div>
+              <div class="color-swatch" data-color="#fa7286" data-node-id="42:2231"></div>
+            </div>
+          </div>
+          <div class="input-section" data-node-id="42:2232">
+            <input
+              type="text"
+              class="habit-name-input"
+              placeholder="New habit"
+              data-node-id="42:2233"
+            />
+            <textarea
+              class="habit-description-input"
+              placeholder="Describe why behind your habit"
+              rows="3"
+              data-node-id="42:2234"
+            ></textarea>
+          </div>
+        </div>
+        <button class="save-button" data-name="Button" data-node-id="42:2235">
+          <span class="save-button-text" data-node-id="42:2236">Save</span>
+        </button>
+      </div>
+      <button class="back-button" data-node-id="42:2237">
+        <div class="back-icon-container" data-name="arrow-left" data-node-id="42:2238">
+          <img
+            src="http://localhost:3845/assets/71792a955a0de63549882582f44a442eb73945cd.svg"
+            alt=""
+            class="back-icon"
+          />
+        </div>
+      </button>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
