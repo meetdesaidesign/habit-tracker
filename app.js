@@ -2,66 +2,90 @@
 let selectedColor = "#f9736f";
 let selectedIconId = "book-open";
 
-// Heroicons outline icons for habit picker
-const HABIT_ICONS = [
-  {
-    id: "book-open",
-    label: "Reading",
-    keywords: ["read", "book", "study", "learning"],
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>`
-  },
-  {
-    id: "bolt",
-    label: "Workout",
-    keywords: ["exercise", "gym", "energy", "fitness", "sport"],
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5 10.5 6.75v4.5m0 0h4.5m-4.5 0L12 10.5m-8.25 3a9 9 0 1 0 18 0 9 9 0 0 0-18 0Z" /></svg>`
-  },
-  {
-    id: "moon",
-    label: "Sleep",
-    keywords: ["sleep", "rest", "night", "bedtime"],
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" /></svg>`
-  },
-  {
-    id: "heart",
-    label: "Health",
-    keywords: ["health", "wellness", "care", "medical"],
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" /></svg>`
-  },
-  {
-    id: "beaker",
-    label: "Experiment",
-    keywords: ["experiment", "learn", "try", "test"],
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 0-6.23-.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232 1.232 3.228 0 4.46s-3.228 1.232-4.46 0l-1.403-1.402m-4.24-4.24 1.403 1.403c1.232 1.232 3.228 1.232 4.46 0s1.232-3.228 0-4.46l-1.402-1.403" /></svg>`
-  },
-  {
-    id: "pencil",
-    label: "Write",
-    keywords: ["write", "journal", "note", "writing"],
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>`
-  },
-  {
-    id: "musical-note",
-    label: "Music",
-    keywords: ["music", "song", "audio", "listen"],
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" /></svg>`
-  },
-  {
-    id: "sun",
-    label: "Morning",
-    keywords: ["morning", "sun", "wake", "day"],
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364 2.25L16.5 8.25m3 7.5H18m-9-9H5.25m9 9v9m-9-9 3-3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>`
-  }
+// Habit data structure
+let habits = [];
+
+// Icon definitions - file names from Assets/Dropdown Icons/heroicons-solid folder
+const ICON_DEFINITIONS = [
+  { file: "academic-cap.svg", id: "academic-cap" },
+  { file: "archive-box.svg", id: "archive-box" },
+  { file: "arrow-down-circle.svg", id: "arrow-down-circle" },
+  { file: "arrow-left-circle.svg", id: "arrow-left-circle" },
+  { file: "banknotes.svg", id: "banknotes" },
+  { file: "book-open.svg", id: "book-open" },
+  { file: "briefcase.svg", id: "briefcase" },
+  { file: "building-office.svg", id: "building-office" },
+  { file: "building-storefront.svg", id: "building-storefront" },
+  { file: "chart-bar.svg", id: "chart-bar" },
+  { file: "check-badge.svg", id: "check-badge" },
+  { file: "code-bracket-square.svg", id: "code-bracket-square" },
+  { file: "computer-desktop.svg", id: "computer-desktop" },
+  { file: "credit-card.svg", id: "credit-card" },
+  { file: "currency-dollar.svg", id: "currency-dollar" },
+  { file: "device-phone-mobile.svg", id: "device-phone-mobile" },
+  { file: "envelope.svg", id: "envelope" },
+  { file: "face-smile.svg", id: "face-smile" },
+  { file: "fire.svg", id: "fire" },
+  { file: "folder.svg", id: "folder" },
+  { file: "gift.svg", id: "gift" },
+  { file: "globe-asia-australia.svg", id: "globe-asia-australia" },
+  { file: "hand-thumb-up.svg", id: "hand-thumb-up" },
+  { file: "rocket-launch.svg", id: "rocket-launch" },
+  { file: "shield-check.svg", id: "shield-check" },
+  { file: "shopping-bag.svg", id: "shopping-bag" },
+  { file: "shopping-cart.svg", id: "shopping-cart" },
+  { file: "square-2-stack.svg", id: "square-2-stack" },
+  { file: "square-3-stack-3d.svg", id: "square-3-stack-3d" },
+  { file: "swatch.svg", id: "swatch" },
+  { file: "trophy.svg", id: "trophy" },
+  { file: "user-group.svg", id: "user-group" },
+  { file: "user.svg", id: "user" },
+  { file: "video-camera.svg", id: "video-camera" },
+  { file: "wallet.svg", id: "wallet" },
+  { file: "wrench-screwdriver.svg", id: "wrench-screwdriver" }
 ];
+
+// Icons loaded from files - will be populated by loadIcons()
+let HABIT_ICONS = [];
+
+// Load icons from Assets folder
+async function loadIcons() {
+  const iconPromises = ICON_DEFINITIONS.map(async (iconDef) => {
+    try {
+      const response = await fetch(`Assets/Dropdown Icons/heroicons-solid/${iconDef.file}`);
+      if (!response.ok) {
+        console.warn(`Failed to load icon: ${iconDef.file}`);
+        return null;
+      }
+      const svgText = await response.text();
+      // Replace fill="#0F172A" or any fill color with fill="currentColor" for CSS color control
+      const processedSvg = svgText.replace(/fill="#[^"]*"/g, 'fill="currentColor"');
+      
+      return {
+        id: iconDef.id,
+        svg: processedSvg
+      };
+    } catch (error) {
+      console.warn(`Error loading icon ${iconDef.file}:`, error);
+      return null;
+    }
+  });
+  
+  const loadedIcons = await Promise.all(iconPromises);
+  HABIT_ICONS = loadedIcons.filter(icon => icon !== null);
+  return HABIT_ICONS;
+}
 
 // Show new habit form
 function showNewHabitForm() {
   const emptyState = document.querySelector(".empty-state");
   const newHabitScreen = document.querySelector(".new-habit-screen");
+  const habitStackScreen = document.querySelector(".habit-stack-screen");
   
-  if (emptyState && newHabitScreen) {
-    // Trigger transition
-    emptyState.classList.add("hidden");
+  // Hide empty state and habit stack, show new habit form
+  if (emptyState) emptyState.classList.add("hidden");
+  if (habitStackScreen) habitStackScreen.classList.add("hidden");
+  if (newHabitScreen) {
     newHabitScreen.classList.remove("hidden");
     
     // Initialize colors when form is shown
@@ -188,36 +212,24 @@ function updateHeroIcon(iconId) {
 
 // Open icon picker
 function openIconPicker() {
-  const modal = document.getElementById("iconPickerModal");
+  const popover = document.getElementById("iconPickerPopover");
   const grid = document.getElementById("iconPickerGrid");
-  const search = document.getElementById("iconPickerSearch");
   
-  if (modal && grid) {
+  if (popover && grid) {
     // Render all icons
     renderIconGrid(HABIT_ICONS, grid);
     
-    // Show modal
-    modal.classList.remove("hidden");
-    
-    // Focus search
-    if (search) {
-      setTimeout(() => search.focus(), 100);
-    }
+    // Show popover
+    popover.classList.remove("hidden");
   }
 }
 
 // Close icon picker
 function closeIconPicker() {
-  const modal = document.getElementById("iconPickerModal");
-  const search = document.getElementById("iconPickerSearch");
+  const popover = document.getElementById("iconPickerPopover");
   
-  if (modal) {
-    modal.classList.add("hidden");
-    
-    // Clear search
-    if (search) {
-      search.value = "";
-    }
+  if (popover) {
+    popover.classList.add("hidden");
   }
 }
 
@@ -228,10 +240,7 @@ function renderIconGrid(icons, container) {
   icons.forEach(icon => {
     const option = document.createElement("div");
     option.className = "icon-option";
-    option.innerHTML = `
-      ${icon.svg}
-      <span class="icon-option-label">${icon.label}</span>
-    `;
+    option.innerHTML = icon.svg.replace(/currentColor/g, "#555555");
     option.addEventListener("click", () => {
       updateHeroIcon(icon.id);
       closeIconPicker();
@@ -282,35 +291,54 @@ function saveHabit() {
     return;
   }
   
-  // TODO: Save habit to storage/backend
-  console.log("Saving habit:", {
-    name: habitName,
+  // Create new habit object
+  const newHabit = {
+    id: `habit-${Date.now()}`,
+    title: habitName,
     description: habitDescription,
     color: selectedColor,
-  });
+    iconId: selectedIconId,
+    completions: {}
+  };
   
-  // For now, just go back to empty state
-  // In a real app, you'd save the habit and show the habit list
-  showEmptyState();
+  // Add to habits array (at the beginning so new habits appear first)
+  habits.unshift(newHabit);
   
   // Clear form
   if (habitNameInput) habitNameInput.value = "";
   if (habitDescriptionInput) habitDescriptionInput.value = "";
+  
+  // Reset to defaults
+  selectedColor = "#f9736f";
+  selectedIconId = "book-open";
+  updateHeroIcon(selectedIconId);
+  setActiveColor(selectedColor);
+  
+  // Hide new habit form
+  const newHabitScreen = document.querySelector(".new-habit-screen");
+  if (newHabitScreen) {
+    newHabitScreen.classList.add("hidden");
+  }
+  
+  // Re-render app state to show habit stack with the new habit
+  if (typeof renderAppState === 'function') {
+    renderAppState();
+  } else {
+    // Fallback: if renderAppState doesn't exist, just show empty state for now
+    showEmptyState();
+  }
 }
 
 // Initialize event listeners
 document.addEventListener("DOMContentLoaded", function () {
-  // Add habit button
-  const addButton = document.querySelector(".add-button");
-  if (addButton) {
-    addButton.addEventListener("click", function(e) {
+  // Add habit button(s) - use event delegation or attach to all buttons
+  // Use event delegation to handle buttons added dynamically
+  document.addEventListener("click", function(e) {
+    if (e.target.closest(".add-button")) {
       e.preventDefault();
-      console.log("Add button clicked");
       showNewHabitForm();
-    });
-  } else {
-    console.error("Add button not found!");
-  }
+    }
+  });
   
   // Back button
   const backButton = document.querySelector(".back-button");
@@ -394,24 +422,527 @@ document.addEventListener("DOMContentLoaded", function () {
     iconCircle.addEventListener("click", openIconPicker);
   }
   
-  const iconPickerSearch = document.getElementById("iconPickerSearch");
-  if (iconPickerSearch) {
-    iconPickerSearch.addEventListener("input", (e) => {
-      filterIcons(e.target.value);
-    });
-  }
-  
   // Close picker when clicking outside
-  const iconPickerModal = document.getElementById("iconPickerModal");
-  if (iconPickerModal) {
-    iconPickerModal.addEventListener("click", (e) => {
-      if (e.target === iconPickerModal) {
+  document.addEventListener("click", (e) => {
+    const popover = document.getElementById("iconPickerPopover");
+    const iconCircle = document.querySelector(".icon-circle");
+    
+    if (popover && !popover.classList.contains("hidden")) {
+      // Check if click is outside popover and not on icon circle
+      const isClickInsidePopover = popover.contains(e.target);
+      const isClickOnIconCircle = iconCircle && iconCircle.contains(e.target);
+      
+      if (!isClickInsidePopover && !isClickOnIconCircle) {
         closeIconPicker();
       }
+    }
+  });
+  
+  // Load icons and initialize
+  loadIcons().then(() => {
+    updateHeroIcon(selectedIconId);
+    
+    // Setup drag and drop for habit cards (if container exists)
+    setupDragAndDrop();
+    
+    // Render app state based on habits (after icons are loaded)
+    renderAppState();
+  });
+});
+
+// Render app state based on habits array
+function renderAppState() {
+  const emptyState = document.querySelector(".empty-state");
+  const habitStackScreen = document.querySelector(".habit-stack-screen");
+  
+  if (habits.length === 0) {
+    // Show empty state, hide habit stack
+    if (emptyState) emptyState.classList.remove("hidden");
+    if (habitStackScreen) habitStackScreen.classList.add("hidden");
+  } else {
+    // Hide empty state, show habit stack
+    if (emptyState) emptyState.classList.add("hidden");
+    if (habitStackScreen) habitStackScreen.classList.remove("hidden");
+    // Render the habit cards
+    renderHabitStack();
+  }
+}
+
+// Render habit stack screen
+function renderHabitStack() {
+  const container = document.getElementById("habitCardsContainer");
+  if (!container) return;
+  
+  container.innerHTML = "";
+  habits.forEach(habit => {
+    const card = renderHabitCard(habit);
+    container.appendChild(card);
+  });
+  
+  // Recalculate grid sizes after all cards are rendered (for window resize)
+  setTimeout(() => {
+    habits.forEach(habit => {
+      const card = document.querySelector(`.habit-card[data-habit-id="${habit.id}"]`);
+      const grid = card ? card.querySelector('.habit-year-grid') : null;
+      if (card && grid) {
+        calculateAndSetGridSize(card, grid, habit);
+      }
     });
+  }, 0);
+}
+
+// Helper: Get days in year (365 or 366 for leap years)
+function getDaysInYear() {
+  const year = new Date().getFullYear();
+  const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+  return isLeapYear ? 366 : 365;
+}
+
+// Helper: Get date string in YYYY-MM-DD format
+function getDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Helper: Lighten color for card background
+function lightenColorForCard(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  
+  // Lighten by mixing with white (85% white, 15% original)
+  const lightR = Math.round(r * 0.15 + 255 * 0.85);
+  const lightG = Math.round(g * 0.15 + 255 * 0.85);
+  const lightB = Math.round(b * 0.15 + 255 * 0.85);
+  
+  return `rgb(${lightR}, ${lightG}, ${lightB})`;
+}
+
+// Render yearly grid of squares
+function renderYearGrid(habit) {
+  const grid = document.createElement("div");
+  grid.className = "habit-year-grid";
+  
+  const daysInYear = getDaysInYear();
+  const lightColor = lightenColorForCard(habit.color);
+  
+  // Create all squares in date order (Jan 1 → Dec 31)
+  for (let dayIndex = 0; dayIndex < daysInYear; dayIndex++) {
+    const year = new Date().getFullYear();
+    const date = new Date(year, 0, 1);
+    date.setDate(date.getDate() + dayIndex);
+    const dateString = getDateString(date);
+    
+    const square = document.createElement("div");
+    square.className = "year-grid-square";
+    square.setAttribute("data-date", dateString);
+    
+    // Check if this date is completed
+    if (habit.completions[dateString]) {
+      square.classList.add("completed");
+      square.style.backgroundColor = habit.color;
+    } else {
+      square.style.backgroundColor = lightColor;
+    }
+    
+    grid.appendChild(square);
   }
   
-  // Initialize default icon
-  updateHeroIcon(selectedIconId);
-});
+  return grid;
+}
+
+// Calculate and set dynamic grid size based on available width
+function calculateAndSetGridSize(card, grid, habit) {
+  const daysInYear = getDaysInYear();
+  const columns = Math.ceil(daysInYear / 7);
+  const rows = 7;
+  const gap = 4;
+  
+  const gridWidth = grid.clientWidth;
+  const totalGaps = (columns - 1) * gap;
+  const daySize = Math.floor((gridWidth - totalGaps) / columns);
+  
+  const minSize = 4;
+  const finalSize = Math.max(daySize, minSize);
+  
+  grid.style.setProperty('--day-size', finalSize + 'px');
+  grid.style.setProperty('--day-columns', columns);
+  grid.style.gridTemplateColumns = `repeat(${columns}, ${finalSize}px)`;
+  grid.style.gridTemplateRows = `repeat(${rows}, ${finalSize}px)`;
+}
+
+// Mark habit as completed for today (toggle)
+function markHabitCompletedToday(habitId) {
+  const habit = habits.find(h => h.id === habitId);
+  if (!habit) return;
+  
+  const today = getDateString();
+  
+  // Toggle completion
+  if (habit.completions[today]) {
+    delete habit.completions[today];
+  } else {
+    habit.completions[today] = true;
+  }
+  
+  // Find the habit card first to scope all queries to this specific card
+  const habitCard = document.querySelector(`.habit-card[data-habit-id="${habitId}"]`);
+  if (!habitCard) return;
+  
+  // Update the check button state
+  const checkButton = habitCard.querySelector(`.habit-check-button[data-habit-id="${habitId}"]`);
+  if (checkButton) {
+    const isCompletedToday = habit.completions[today] || false;
+    
+    if (isCompletedToday) {
+      checkButton.style.backgroundColor = habit.color;
+      checkButton.style.borderColor = habit.color;
+      checkButton.classList.add("completed");
+    } else {
+      checkButton.style.backgroundColor = "#f4f4f4";
+      checkButton.style.borderColor = "#bfbfbf";
+      checkButton.classList.remove("completed");
+    }
+  }
+  
+  // Update the grid square for today
+  const yearGrid = habitCard.querySelector('.habit-year-grid');
+  if (yearGrid) {
+    const todaySquare = yearGrid.querySelector(`.year-grid-square[data-date="${today}"]`);
+    if (todaySquare) {
+      const lightColor = lightenColorForCard(habit.color);
+      if (habit.completions[today]) {
+        todaySquare.classList.add("completed");
+        todaySquare.style.backgroundColor = habit.color;
+      } else {
+        todaySquare.classList.remove("completed");
+        todaySquare.style.backgroundColor = lightColor;
+      }
+    }
+  }
+}
+
+// Render a single habit card
+function renderHabitCard(habit) {
+  const card = document.createElement("div");
+  card.className = "habit-card";
+  card.setAttribute("data-habit-id", habit.id);
+  
+  // Add hover actions
+  const hoverActions = createHoverActions(habit.id);
+  card.appendChild(hoverActions);
+  
+  // Card header
+  const header = document.createElement("div");
+  header.className = "habit-card-header";
+  
+  const info = document.createElement("div");
+  info.className = "habit-card-info";
+  
+  // Icon container
+  const iconContainer = document.createElement("div");
+  iconContainer.className = "habit-icon-container";
+  iconContainer.style.backgroundColor = habit.color;
+  const icon = HABIT_ICONS.find(i => i.id === habit.iconId) || HABIT_ICONS[0];
+  if (icon) {
+    iconContainer.innerHTML = icon.svg.replace(/currentColor/g, "#ffffff");
+  }
+  info.appendChild(iconContainer);
+  
+  // Text info
+  const textInfo = document.createElement("div");
+  textInfo.className = "habit-text-info";
+  
+  const title = document.createElement("div");
+  title.className = "habit-title";
+  title.textContent = habit.title;
+  textInfo.appendChild(title);
+  
+  const description = document.createElement("div");
+  description.className = "habit-description";
+  description.textContent = habit.description;
+  textInfo.appendChild(description);
+  
+  info.appendChild(textInfo);
+  header.appendChild(info);
+  
+  // Check button
+  const checkButton = document.createElement("button");
+  checkButton.className = "habit-check-button";
+  checkButton.setAttribute("data-habit-id", habit.id);
+  
+  // Check if today is completed
+  const today = getDateString();
+  const isCompletedToday = habit.completions[today] || false;
+  
+  // Set button state based on completion
+  if (isCompletedToday) {
+    checkButton.style.backgroundColor = habit.color;
+    checkButton.style.borderColor = habit.color;
+    checkButton.classList.add("completed");
+  } else {
+    checkButton.style.backgroundColor = "#f4f4f4";
+    checkButton.style.borderColor = "#bfbfbf";
+  }
+  
+  const checkIcon = document.createElement("img");
+  checkIcon.src = "Assets/check.svg";
+  checkIcon.alt = "";
+  checkIcon.className = "check-icon";
+  checkButton.appendChild(checkIcon);
+  
+  checkButton.addEventListener("click", () => {
+    markHabitCompletedToday(habit.id);
+  });
+  
+  header.appendChild(checkButton);
+  card.appendChild(header);
+  
+  // Year grid
+  const yearGrid = renderYearGrid(habit);
+  card.appendChild(yearGrid);
+  
+  // Calculate grid size after card is added to DOM
+  setTimeout(() => {
+    calculateAndSetGridSize(card, yearGrid, habit);
+  }, 0);
+  
+  return card;
+}
+
+// Delete a habit (with undo functionality)
+let pendingDeleteTimeout = null;
+let pendingDeleteData = null;
+
+function deleteHabit(habitId) {
+  // Clear any existing pending delete
+  if (pendingDeleteTimeout) {
+    clearTimeout(pendingDeleteTimeout);
+    pendingDeleteTimeout = null;
+  }
+  
+  // If there's already a pending delete, complete it first
+  if (pendingDeleteData) {
+    permanentlyDeleteHabit(pendingDeleteData.habit.id);
+  }
+  
+  // Find the habit
+  const index = habits.findIndex(h => h.id === habitId);
+  if (index === -1) return;
+  
+  const habit = habits[index];
+  const card = document.querySelector(`.habit-card[data-habit-id="${habitId}"]`);
+  
+  if (!card) return;
+  
+  // Store delete data for undo
+  pendingDeleteData = {
+    habit: habit,
+    index: index,
+    card: card,
+    habitId: habitId
+  };
+  
+  // Hide the original card
+  card.style.display = 'none';
+  
+  // Create undo card
+  const undoCard = document.createElement("div");
+  undoCard.className = "habit-card-undo";
+  undoCard.setAttribute("data-habit-id", habitId);
+  undoCard.innerHTML = `
+    <div class="habit-card-undo-content">
+      <div class="habit-card-undo-left">
+        <div class="habit-card-undo-icon-container">
+          <img src="Assets/check.svg" alt="Check" class="habit-card-undo-icon" />
+        </div>
+        <p class="habit-card-undo-text">Habit removed from your stack</p>
+      </div>
+      <button class="habit-card-undo-button">Undo</button>
+    </div>
+  `;
+  
+  // Insert undo card right after the hidden card
+  card.parentNode.insertBefore(undoCard, card.nextSibling);
+  
+  // Handle undo button click
+  const undoButton = undoCard.querySelector('.habit-card-undo-button');
+  undoButton.addEventListener('click', () => {
+    undoDeleteHabit(habitId);
+  });
+  
+  // Set timeout to permanently delete after 5 seconds
+  pendingDeleteTimeout = setTimeout(() => {
+    permanentlyDeleteHabit(habitId);
+  }, 5000);
+}
+
+// Undo delete - restore the habit
+function undoDeleteHabit(habitId) {
+  if (!pendingDeleteData || pendingDeleteData.habit.id !== habitId) return;
+  
+  // Clear timeout
+  if (pendingDeleteTimeout) {
+    clearTimeout(pendingDeleteTimeout);
+    pendingDeleteTimeout = null;
+  }
+  
+  // Remove undo card
+  const undoCard = document.querySelector(`.habit-card-undo[data-habit-id="${habitId}"]`);
+  if (undoCard) {
+    undoCard.remove();
+  }
+  
+  // Show the original card again
+  if (pendingDeleteData.card) {
+    pendingDeleteData.card.style.display = '';
+  }
+  
+  // Clear pending delete data (habit is still in array, we just didn't remove it)
+  pendingDeleteData = null;
+}
+
+// Permanently delete the habit (called after timeout)
+function permanentlyDeleteHabit(habitId) {
+  if (!pendingDeleteData || pendingDeleteData.habitId !== habitId) return;
+  
+  // Remove from habits array
+  const index = habits.findIndex(h => h.id === habitId);
+  if (index !== -1) {
+    habits.splice(index, 1);
+  }
+  
+  // Remove undo card
+  const undoCard = document.querySelector(`.habit-card-undo[data-habit-id="${habitId}"]`);
+  if (undoCard) {
+    undoCard.remove();
+  }
+  
+  // Remove original card
+  if (pendingDeleteData.card) {
+    pendingDeleteData.card.remove();
+  }
+  
+  // Clear pending delete data
+  pendingDeleteData = null;
+  pendingDeleteTimeout = null;
+  
+  // Re-render app state (will show empty state if no habits left)
+  renderAppState();
+}
+
+// Setup drag and drop for habit cards
+// This should be called after habit cards are rendered
+function setupDragAndDrop() {
+  const container = document.getElementById("habitCardsContainer");
+  if (!container) return;
+  
+  // Use event delegation since cards may be re-rendered
+  container.addEventListener("dragstart", (e) => {
+    if (e.target.classList.contains("habit-card-drag-handle") || 
+        e.target.closest(".habit-card-drag-handle")) {
+      const dragHandle = e.target.classList.contains("habit-card-drag-handle") 
+        ? e.target 
+        : e.target.closest(".habit-card-drag-handle");
+      const card = dragHandle.closest(".habit-card");
+      
+      if (card) {
+        card.style.opacity = "0.5";
+        card.setAttribute("data-dragging", "true");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/html", card.outerHTML);
+      }
+    }
+  });
+  
+  container.addEventListener("dragend", (e) => {
+    const card = e.target.closest(".habit-card");
+    if (card) {
+      card.style.opacity = "1";
+      card.removeAttribute("data-dragging");
+    }
+  });
+  
+  container.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    
+    const draggingCard = container.querySelector(".habit-card[data-dragging='true']");
+    if (!draggingCard) return;
+    
+    const targetCard = e.target.closest(".habit-card");
+    if (targetCard && targetCard !== draggingCard) {
+      const rect = targetCard.getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+      const mouseY = e.clientY;
+      
+      if (mouseY < midpoint) {
+        container.insertBefore(draggingCard, targetCard);
+      } else {
+        container.insertBefore(draggingCard, targetCard.nextSibling);
+      }
+    }
+  });
+  
+  container.addEventListener("drop", (e) => {
+    e.preventDefault();
+    const draggingCard = container.querySelector(".habit-card[data-dragging='true']");
+    if (draggingCard) {
+      // Reorder habits array based on new DOM order
+      const allCards = Array.from(container.querySelectorAll(".habit-card"));
+      const oldIndex = parseInt(draggingCard.getAttribute("data-index") || "0");
+      const newIndex = allCards.indexOf(draggingCard);
+      
+      if (newIndex !== -1 && newIndex !== oldIndex && typeof habits !== 'undefined' && habits) {
+        const [movedHabit] = habits.splice(oldIndex, 1);
+        habits.splice(newIndex, 0, movedHabit);
+      }
+    }
+  });
+}
+
+// Create hover actions container for a habit card
+// This should be called when rendering a habit card
+function createHoverActions(habitId) {
+  const hoverActions = document.createElement("div");
+  hoverActions.className = "habit-card-hover-actions";
+  
+  // Drag handle button
+  const dragHandle = document.createElement("button");
+  dragHandle.className = "habit-card-drag-handle";
+  dragHandle.setAttribute("data-habit-id", habitId);
+  dragHandle.setAttribute("draggable", "true");
+  const dragIcon = document.createElement("img");
+  dragIcon.src = "Assets/drag-handle.svg";
+  dragIcon.alt = "";
+  dragIcon.style.width = "24px";
+  dragIcon.style.height = "24px";
+  dragHandle.appendChild(dragIcon);
+  dragHandle.setAttribute("aria-label", "Drag to reorder");
+  
+  // Delete button
+  const deleteButton = document.createElement("button");
+  deleteButton.className = "habit-card-delete";
+  deleteButton.setAttribute("data-habit-id", habitId);
+  const trashIcon = document.createElement("img");
+  trashIcon.src = "Assets/trash.svg";
+  trashIcon.alt = "";
+  trashIcon.style.width = "24px";
+  trashIcon.style.height = "24px";
+  deleteButton.appendChild(trashIcon);
+  deleteButton.setAttribute("aria-label", "Delete habit");
+  
+  // Attach delete handler
+  deleteButton.addEventListener("click", (e) => {
+    e.stopPropagation();
+    deleteHabit(habitId);
+  });
+  
+  hoverActions.appendChild(dragHandle);
+  hoverActions.appendChild(deleteButton);
+  
+  return hoverActions;
+}
 

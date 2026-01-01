@@ -65,20 +65,12 @@
                   <!-- Icon will be inserted here via JavaScript -->
                 </div>
               </div>
-            </div>
-            <!-- Icon Picker Modal -->
-            <div class="icon-picker-modal hidden" id="iconPickerModal">
-              <div class="icon-picker-content">
-                <div class="icon-picker-header">
-                  <input
-                    type="text"
-                    class="icon-picker-search"
-                    placeholder="Search icons..."
-                    id="iconPickerSearch"
-                  />
-                </div>
-                <div class="icon-picker-grid" id="iconPickerGrid">
-                  <!-- Icons will be inserted here via JavaScript -->
+              <!-- Icon Picker Popover -->
+              <div class="icon-picker-popover hidden" id="iconPickerPopover">
+                <div class="icon-picker-content">
+                  <div class="icon-picker-grid" id="iconPickerGrid">
+                    <!-- Icons will be inserted here via JavaScript -->
+                  </div>
                 </div>
               </div>
             </div>
@@ -151,6 +143,28 @@
         <button class="save-button" data-name="Button" data-node-id="42:2235" disabled>
           <span class="save-button-text" data-node-id="42:2236">Save</span>
         </button>
+      </div>
+    </div>
+
+    <!-- Habit Stack Screen -->
+    <div class="habit-stack-screen hidden" data-name="Desktop Frame" data-node-id="60:2250">
+      <div class="habit-stack-layout">
+        <div class="habit-stack-header">
+          <h1 class="habit-stack-title" data-node-id="60:2253">Habit Stack</h1>
+          <button class="add-button" id="addNewHabitButton" data-node-id="60:2254">
+            <img
+              src="Assets/plus.svg"
+              alt=""
+              class="plus-icon"
+              data-name="plus"
+              data-node-id="60:2255"
+            />
+            <span class="button-text" data-node-id="60:2258">Add new habit</span>
+          </button>
+        </div>
+        <div class="habit-cards-container" id="habitCardsContainer">
+          <!-- Habit cards will be rendered here via JavaScript -->
+        </div>
       </div>
     </div>
 
