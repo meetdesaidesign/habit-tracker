@@ -22,10 +22,17 @@ body {
   top: 0;
   left: 0;
   background: #ffffff;
-  opacity: 1;
+  opacity: 0;
   transform: translateX(0);
   transition: opacity 0.3s ease, transform 0.3s ease;
   z-index: 1;
+  pointer-events: none;
+}
+
+/* Show empty state when not hidden (after initApp determines it should be visible) */
+.empty-state:not(.hidden) {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .empty-state.hidden {
@@ -638,11 +645,18 @@ body {
   top: 0;
   left: 0;
   background: #ffffff;
-  opacity: 1;
+  opacity: 0;
   transform: translateX(0);
   transition: opacity 0.3s ease, transform 0.3s ease;
   z-index: 1;
   overflow-y: auto;
+  pointer-events: none;
+}
+
+/* Show habit stack screen when not hidden (after initApp determines it should be visible) */
+.habit-stack-screen:not(.hidden) {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .habit-stack-screen.hidden {
@@ -693,6 +707,103 @@ body {
   flex-direction: column;
   gap: 16px;
   position: relative;
+  will-change: transform;
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), 
+              box-shadow 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .habit-card {
+    transition: none;
+  }
+}
+
+.habit-card:active {
+  cursor: grabbing;
+}
+
+/* Dragging state */
+.habit-card.is-dragging {
+  opacity: 0.8;
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  cursor: grabbing;
+  transition: none;
+}
+
+/* Drop target indicator */
+.habit-card.is-drag-over {
+  border-color: rgba(34, 111, 241, 0.4);
+  background-color: rgba(34, 111, 241, 0.02);
+}
+
+/* Prevent text selection during drag */
+.habit-card.is-dragging * {
+  pointer-events: none;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .habit-card {
+    transition: none;
+  }
+}
+
+/* Dragging state */
+.habit-card.is-dragging {
+  position: fixed !important;
+  transform: scale(1.03);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  cursor: grabbing !important;
+  transition: box-shadow 140ms ease-out;
+  z-index: 1000;
+  opacity: 0.9;
+  pointer-events: none;
+  margin: 0 !important;
+  width: var(--dragging-card-width, auto);
+}
+
+/* Dragging state with transform override (for following cursor) */
+.habit-card.is-dragging.is-following-cursor {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .habit-card.is-dragging {
+    transform: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Drop target indicator */
+.habit-card.is-drop-target {
+  border-color: rgba(34, 111, 241, 0.4);
+  background-color: rgba(34, 111, 241, 0.02);
+  transition: border-color 140ms ease-out, 
+              background-color 140ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .habit-card.is-drop-target {
+    border-color: rgba(34, 111, 241, 0.6);
+    background-color: rgba(34, 111, 241, 0.05);
+  }
+}
+
+/* FLIP animation for reordering (applied to non-dragging cards) */
+.habit-card.is-reordering {
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .habit-card.is-reordering {
+    transition: none;
+  }
 }
 
 /* Hover actions container - positioned on left edge */
@@ -711,7 +822,7 @@ body {
   opacity: 1;
 }
 
-.habit-card-drag-handle,
+.habit-card-edit,
 .habit-card-delete {
   width: 44px;
   height: 31px;
@@ -723,29 +834,30 @@ body {
   cursor: pointer;
   padding: 0;
   transition: background-color 0.2s ease;
+  position: relative;
 }
 
-.habit-card-drag-handle {
+.habit-card-edit {
   border-radius: 6px 0 0 6px;
   border-right: none;
-  cursor: grab;
-}
-
-.habit-card-drag-handle:active {
-  cursor: grabbing;
 }
 
 .habit-card-delete {
   border-radius: 0 6px 6px 0;
-  cursor: pointer;
 }
 
-.habit-card-drag-handle:hover,
+.habit-card-edit:hover,
 .habit-card-delete:hover {
   background-color: #f4f4f4;
 }
 
-.habit-card-drag-handle img,
+.habit-card-edit img {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  display: block;
+}
+
 .habit-card-delete img {
   width: 24px;
   height: 24px;

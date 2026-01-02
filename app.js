@@ -2,8 +2,45 @@
 let selectedColor = "#f9736f";
 let selectedIconId = "book-open";
 
-// Habit data structure
-let habits = [];
+// Habit data structure - will be loaded from localStorage in initApp()
+let habits;
+
+// LocalStorage helpers
+function saveHabitsToStorage(habits) {
+  try {
+    localStorage.setItem("habits", JSON.stringify(habits));
+  } catch (error) {
+    console.error("Failed to save habits to localStorage:", error);
+  }
+}
+
+function loadHabitsFromStorage() {
+  try {
+    const stored = localStorage.getItem("habits");
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    // Migrate old format (completions object) to new format (completedDates array)
+    return parsed.map(habit => {
+      if (habit.completions && typeof habit.completions === 'object') {
+        // Convert completions object to completedDates array
+        habit.completedDates = Object.keys(habit.completions).filter(date => habit.completions[date]);
+        delete habit.completions;
+      }
+      // Ensure completedDates exists
+      if (!habit.completedDates) {
+        habit.completedDates = [];
+      }
+      // Ensure createdAt exists
+      if (!habit.createdAt) {
+        habit.createdAt = new Date().toISOString();
+      }
+      return habit;
+    });
+  } catch (error) {
+    console.error("Failed to load habits from localStorage:", error);
+    return [];
+  }
+}
 
 // Icon definitions - file names from Assets/Dropdown Icons/heroicons-solid folder
 const ICON_DEFINITIONS = [
@@ -291,18 +328,41 @@ function saveHabit() {
     return;
   }
   
-  // Create new habit object
-  const newHabit = {
-    id: `habit-${Date.now()}`,
-    title: habitName,
-    description: habitDescription,
-    color: selectedColor,
-    iconId: selectedIconId,
-    completions: {}
-  };
+  const newHabitScreen = document.querySelector(".new-habit-screen");
+  const editingHabitId = newHabitScreen ? newHabitScreen.getAttribute("data-editing-habit-id") : null;
   
-  // Add to habits array (at the beginning so new habits appear first)
-  habits.unshift(newHabit);
+  if (editingHabitId) {
+    // Update existing habit
+    const habitIndex = habits.findIndex(h => h.id === editingHabitId);
+    if (habitIndex !== -1) {
+      // Preserve the original completedDates and createdAt
+      habits[habitIndex].title = habitName;
+      habits[habitIndex].description = habitDescription;
+      habits[habitIndex].color = selectedColor;
+      habits[habitIndex].iconId = selectedIconId;
+    }
+    // Remove editing attribute
+    if (newHabitScreen) {
+      newHabitScreen.removeAttribute("data-editing-habit-id");
+    }
+  } else {
+    // Create new habit object
+    const newHabit = {
+      id: `habit-${Date.now()}`,
+      title: habitName,
+      description: habitDescription,
+      color: selectedColor,
+      iconId: selectedIconId,
+      createdAt: new Date().toISOString(),
+      completedDates: []
+    };
+    
+    // Add to habits array (at the beginning so new habits appear first)
+    habits.unshift(newHabit);
+  }
+  
+  // Save to localStorage after creating or updating
+  saveHabitsToStorage(habits);
   
   // Clear form
   if (habitNameInput) habitNameInput.value = "";
@@ -314,13 +374,21 @@ function saveHabit() {
   updateHeroIcon(selectedIconId);
   setActiveColor(selectedColor);
   
+  // Reset color swatches
+  const colorSwatches = document.querySelectorAll(".color-swatch");
+  colorSwatches.forEach((swatch, index) => {
+    swatch.classList.remove("selected");
+    if (index === 0) {
+      swatch.classList.add("selected");
+    }
+  });
+  
   // Hide new habit form
-  const newHabitScreen = document.querySelector(".new-habit-screen");
   if (newHabitScreen) {
     newHabitScreen.classList.add("hidden");
   }
   
-  // Re-render app state to show habit stack with the new habit
+  // Re-render app state to show habit stack with the updated habit
   if (typeof renderAppState === 'function') {
     renderAppState();
   } else {
@@ -329,8 +397,12 @@ function saveHabit() {
   }
 }
 
-// Initialize event listeners
+// Initialize event listeners and app
 document.addEventListener("DOMContentLoaded", function () {
+  // Initialize app first - loads habits from localStorage, then renders
+  // This ensures no empty state flash - habits are loaded before first render
+  initApp();
+  
   // Add habit button(s) - use event delegation or attach to all buttons
   // Use event delegation to handle buttons added dynamically
   document.addEventListener("click", function(e) {
@@ -340,10 +412,48 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
   
-  // Back button
+  // Back button - returns to previous view based on habits.length
   const backButton = document.querySelector(".back-button");
   if (backButton) {
-    backButton.addEventListener("click", showEmptyState);
+    backButton.addEventListener("click", function() {
+      // Hide the new habit form
+      const newHabitScreen = document.querySelector(".new-habit-screen");
+      if (newHabitScreen) {
+        newHabitScreen.classList.add("hidden");
+      }
+      
+      // Reset form fields without affecting habits
+      const habitNameInput = document.querySelector(".habit-name-input");
+      const habitDescriptionInput = document.querySelector(".habit-description-input");
+      if (habitNameInput) habitNameInput.value = "";
+      if (habitDescriptionInput) {
+        habitDescriptionInput.value = "";
+        habitDescriptionInput.style.height = "auto";
+      }
+      
+      // Clear editing state if present
+      if (newHabitScreen) {
+        newHabitScreen.removeAttribute("data-editing-habit-id");
+      }
+      
+      // Reset form to defaults
+      selectedColor = "#f9736f";
+      selectedIconId = "book-open";
+      updateHeroIcon(selectedIconId);
+      setActiveColor(selectedColor);
+      
+      // Reset color swatches
+      const colorSwatches = document.querySelectorAll(".color-swatch");
+      colorSwatches.forEach((swatch, index) => {
+        swatch.classList.remove("selected");
+        if (index === 0) {
+          swatch.classList.add("selected");
+        }
+      });
+      
+      // Render the correct view based on habits.length (single source of truth)
+      renderAppState();
+    });
   }
   
   // Color swatches - set up click handlers and ensure first is selected
@@ -438,22 +548,33 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
   
-  // Load icons and initialize
+  // Load icons asynchronously (doesn't block initial render)
   loadIcons().then(() => {
     updateHeroIcon(selectedIconId);
-    
-    // Setup drag and drop for habit cards (if container exists)
-    setupDragAndDrop();
-    
-    // Render app state based on habits (after icons are loaded)
-    renderAppState();
   });
 });
 
-// Render app state based on habits array
+// Initialize app - loads habits from localStorage, then renders
+// This ensures no empty state flash - habits are loaded before first render
+function initApp() {
+  // Load habits from localStorage synchronously
+  habits = loadHabitsFromStorage();
+  
+  // Render app state based on loaded habits
+  // This is the ONLY initial render call - happens after habits are loaded
+  renderAppState();
+}
+
+// Render app state based on habits array (single source of truth)
 function renderAppState() {
   const emptyState = document.querySelector(".empty-state");
   const habitStackScreen = document.querySelector(".habit-stack-screen");
+  const newHabitScreen = document.querySelector(".new-habit-screen");
+  
+  // Ensure new habit screen is hidden when rendering app state
+  if (newHabitScreen) {
+    newHabitScreen.classList.add("hidden");
+  }
   
   if (habits.length === 0) {
     // Show empty state, hide habit stack
@@ -474,10 +595,15 @@ function renderHabitStack() {
   if (!container) return;
   
   container.innerHTML = "";
-  habits.forEach(habit => {
+  habits.forEach((habit, index) => {
     const card = renderHabitCard(habit);
+    // Set data-index for drag-and-drop tracking
+    card.setAttribute("data-index", index.toString());
     container.appendChild(card);
   });
+  
+  // Setup drag and drop after cards are rendered
+  setupDragAndDrop();
   
   // Recalculate grid sizes after all cards are rendered (for window resize)
   setTimeout(() => {
@@ -539,8 +665,9 @@ function renderYearGrid(habit) {
     square.className = "year-grid-square";
     square.setAttribute("data-date", dateString);
     
-    // Check if this date is completed
-    if (habit.completions[dateString]) {
+    // Check if this date is in completedDates array
+    const isCompleted = habit.completedDates && habit.completedDates.includes(dateString);
+    if (isCompleted) {
       square.classList.add("completed");
       square.style.backgroundColor = habit.color;
     } else {
@@ -575,17 +702,29 @@ function calculateAndSetGridSize(card, grid, habit) {
 
 // Mark habit as completed for today (toggle)
 function markHabitCompletedToday(habitId) {
+  // Find habit by id (not index) - this ensures we update the correct habit
   const habit = habits.find(h => h.id === habitId);
   if (!habit) return;
   
   const today = getDateString();
   
-  // Toggle completion
-  if (habit.completions[today]) {
-    delete habit.completions[today];
-  } else {
-    habit.completions[today] = true;
+  // Ensure completedDates array exists
+  if (!habit.completedDates) {
+    habit.completedDates = [];
   }
+  
+  // Toggle completion - add if not present, remove if present
+  const dateIndex = habit.completedDates.indexOf(today);
+  if (dateIndex > -1) {
+    // Remove date if already completed
+    habit.completedDates.splice(dateIndex, 1);
+  } else {
+    // Add date if not completed (only once per day)
+    habit.completedDates.push(today);
+  }
+  
+  // Save to localStorage after updating completion
+  saveHabitsToStorage(habits);
   
   // Find the habit card first to scope all queries to this specific card
   const habitCard = document.querySelector(`.habit-card[data-habit-id="${habitId}"]`);
@@ -594,7 +733,7 @@ function markHabitCompletedToday(habitId) {
   // Update the check button state
   const checkButton = habitCard.querySelector(`.habit-check-button[data-habit-id="${habitId}"]`);
   if (checkButton) {
-    const isCompletedToday = habit.completions[today] || false;
+    const isCompletedToday = habit.completedDates.includes(today);
     
     if (isCompletedToday) {
       checkButton.style.backgroundColor = habit.color;
@@ -613,7 +752,8 @@ function markHabitCompletedToday(habitId) {
     const todaySquare = yearGrid.querySelector(`.year-grid-square[data-date="${today}"]`);
     if (todaySquare) {
       const lightColor = lightenColorForCard(habit.color);
-      if (habit.completions[today]) {
+      const isCompletedToday = habit.completedDates.includes(today);
+      if (isCompletedToday) {
         todaySquare.classList.add("completed");
         todaySquare.style.backgroundColor = habit.color;
       } else {
@@ -675,7 +815,7 @@ function renderHabitCard(habit) {
   
   // Check if today is completed
   const today = getDateString();
-  const isCompletedToday = habit.completions[today] || false;
+  const isCompletedToday = habit.completedDates && habit.completedDates.includes(today);
   
   // Set button state based on completion
   if (isCompletedToday) {
@@ -833,74 +973,48 @@ function permanentlyDeleteHabit(habitId) {
   renderAppState();
 }
 
-// Setup drag and drop for habit cards
-// This should be called after habit cards are rendered
-function setupDragAndDrop() {
-  const container = document.getElementById("habitCardsContainer");
-  if (!container) return;
+// Edit a habit - opens the edit form with habit data pre-filled
+function editHabit(habitId) {
+  const habit = habits.find(h => h.id === habitId);
+  if (!habit) return;
   
-  // Use event delegation since cards may be re-rendered
-  container.addEventListener("dragstart", (e) => {
-    if (e.target.classList.contains("habit-card-drag-handle") || 
-        e.target.closest(".habit-card-drag-handle")) {
-      const dragHandle = e.target.classList.contains("habit-card-drag-handle") 
-        ? e.target 
-        : e.target.closest(".habit-card-drag-handle");
-      const card = dragHandle.closest(".habit-card");
-      
-      if (card) {
-        card.style.opacity = "0.5";
-        card.setAttribute("data-dragging", "true");
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/html", card.outerHTML);
-      }
+  // Set the form values to the habit's current data
+  selectedColor = habit.color;
+  selectedIconId = habit.iconId;
+  
+  // Update the form inputs
+  const habitNameInput = document.querySelector(".habit-name-input");
+  const habitDescriptionInput = document.querySelector(".habit-description-input");
+  
+  if (habitNameInput) habitNameInput.value = habit.title;
+  if (habitDescriptionInput) {
+    habitDescriptionInput.value = habit.description;
+    // Auto-resize textarea
+    habitDescriptionInput.style.height = "auto";
+    habitDescriptionInput.style.height = Math.min(habitDescriptionInput.scrollHeight, 200) + "px";
+  }
+  
+  // Update colors and icon
+  setActiveColor(selectedColor);
+  updateHeroIcon(selectedIconId);
+  
+  // Update color swatches
+  const colorSwatches = document.querySelectorAll(".color-swatch");
+  colorSwatches.forEach(swatch => {
+    swatch.classList.remove("selected");
+    if (swatch.getAttribute("data-color") === selectedColor) {
+      swatch.classList.add("selected");
     }
   });
   
-  container.addEventListener("dragend", (e) => {
-    const card = e.target.closest(".habit-card");
-    if (card) {
-      card.style.opacity = "1";
-      card.removeAttribute("data-dragging");
-    }
-  });
+  // Store the habit ID being edited (we'll use this when saving)
+  const newHabitScreen = document.querySelector(".new-habit-screen");
+  if (newHabitScreen) {
+    newHabitScreen.setAttribute("data-editing-habit-id", habitId);
+  }
   
-  container.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    
-    const draggingCard = container.querySelector(".habit-card[data-dragging='true']");
-    if (!draggingCard) return;
-    
-    const targetCard = e.target.closest(".habit-card");
-    if (targetCard && targetCard !== draggingCard) {
-      const rect = targetCard.getBoundingClientRect();
-      const midpoint = rect.top + rect.height / 2;
-      const mouseY = e.clientY;
-      
-      if (mouseY < midpoint) {
-        container.insertBefore(draggingCard, targetCard);
-      } else {
-        container.insertBefore(draggingCard, targetCard.nextSibling);
-      }
-    }
-  });
-  
-  container.addEventListener("drop", (e) => {
-    e.preventDefault();
-    const draggingCard = container.querySelector(".habit-card[data-dragging='true']");
-    if (draggingCard) {
-      // Reorder habits array based on new DOM order
-      const allCards = Array.from(container.querySelectorAll(".habit-card"));
-      const oldIndex = parseInt(draggingCard.getAttribute("data-index") || "0");
-      const newIndex = allCards.indexOf(draggingCard);
-      
-      if (newIndex !== -1 && newIndex !== oldIndex && typeof habits !== 'undefined' && habits) {
-        const [movedHabit] = habits.splice(oldIndex, 1);
-        habits.splice(newIndex, 0, movedHabit);
-      }
-    }
-  });
+  // Show the new habit form (same form used for adding)
+  showNewHabitForm();
 }
 
 // Create hover actions container for a habit card
@@ -909,18 +1023,25 @@ function createHoverActions(habitId) {
   const hoverActions = document.createElement("div");
   hoverActions.className = "habit-card-hover-actions";
   
-  // Drag handle button
-  const dragHandle = document.createElement("button");
-  dragHandle.className = "habit-card-drag-handle";
-  dragHandle.setAttribute("data-habit-id", habitId);
-  dragHandle.setAttribute("draggable", "true");
-  const dragIcon = document.createElement("img");
-  dragIcon.src = "Assets/drag-handle.svg";
-  dragIcon.alt = "";
-  dragIcon.style.width = "24px";
-  dragIcon.style.height = "24px";
-  dragHandle.appendChild(dragIcon);
-  dragHandle.setAttribute("aria-label", "Drag to reorder");
+  // Edit button
+  const editButton = document.createElement("button");
+  editButton.className = "habit-card-edit";
+  editButton.setAttribute("data-habit-id", habitId);
+  editButton.setAttribute("type", "button");
+  const editIcon = document.createElement("img");
+  editIcon.src = "Assets/edit-2.svg";
+  editIcon.alt = "";
+  editIcon.style.width = "16px";
+  editIcon.style.height = "16px";
+  editIcon.style.pointerEvents = "none";
+  editButton.appendChild(editIcon);
+  editButton.setAttribute("aria-label", "Edit habit");
+  
+  // Attach edit handler
+  editButton.addEventListener("click", (e) => {
+    e.stopPropagation();
+    editHabit(habitId);
+  });
   
   // Delete button
   const deleteButton = document.createElement("button");
@@ -931,6 +1052,7 @@ function createHoverActions(habitId) {
   trashIcon.alt = "";
   trashIcon.style.width = "24px";
   trashIcon.style.height = "24px";
+  trashIcon.style.pointerEvents = "none";
   deleteButton.appendChild(trashIcon);
   deleteButton.setAttribute("aria-label", "Delete habit");
   
@@ -940,9 +1062,312 @@ function createHoverActions(habitId) {
     deleteHabit(habitId);
   });
   
-  hoverActions.appendChild(dragHandle);
+  hoverActions.appendChild(editButton);
   hoverActions.appendChild(deleteButton);
   
   return hoverActions;
+}
+
+// Drag and drop state (shared across all drag operations)
+let dragState = {
+  draggedCard: null,
+  draggedIndex: null,
+  placeholder: null,
+  dragOffset: { x: 0, y: 0 },
+  currentDragOver: null,
+  isSetup: false
+};
+
+// Setup drag and drop for habit cards (only once using event delegation)
+function setupDragAndDrop() {
+  const container = document.getElementById("habitCardsContainer");
+  if (!container) return;
+  
+  // Only set up listeners once (container persists, so this is safe)
+  if (dragState.isSetup) return;
+  dragState.isSetup = true;
+  
+  // Create placeholder element
+  function createPlaceholder() {
+    const placeholder = document.createElement("div");
+    placeholder.className = "habit-card-placeholder";
+    placeholder.style.height = "0";
+    placeholder.style.marginBottom = "16px";
+    placeholder.style.border = "2px dashed #ccc";
+    placeholder.style.borderRadius = "8px";
+    placeholder.style.transition = "height 200ms ease";
+    return placeholder;
+  }
+  
+  // Handle mouse move during drag
+  function handleMouseMove(e) {
+    if (!dragState.draggedCard) return;
+    
+    // Update dragged card position
+    const newX = e.clientX - dragState.dragOffset.x;
+    const newY = e.clientY - dragState.dragOffset.y;
+    dragState.draggedCard.style.left = newX + "px";
+    dragState.draggedCard.style.top = newY + "px";
+    
+    // Get dragged card bounds (using fixed position coordinates)
+    const draggedCardRect = dragState.draggedCard.getBoundingClientRect();
+    const draggedCardTop = draggedCardRect.top;
+    const draggedCardBottom = draggedCardRect.bottom;
+    const draggedCardCenterY = draggedCardTop + draggedCardRect.height / 2;
+    
+    // Find which card we're overlapping with (check for any overlap, not just mouse position)
+    const cards = Array.from(container.children).filter(child => 
+      child !== dragState.draggedCard && child !== dragState.placeholder && child.classList.contains("habit-card")
+    );
+    
+    let dragOverCard = null;
+    let minDistance = Infinity;
+    
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      const rect = card.getBoundingClientRect();
+      
+      // Check if dragged card overlaps with this card (any vertical overlap)
+      // Use a small threshold to trigger earlier
+      const threshold = 20; // pixels
+      const overlaps = !(draggedCardBottom + threshold < rect.top || draggedCardTop - threshold > rect.bottom);
+      
+      if (overlaps) {
+        // Calculate distance from dragged card center to card center
+        const cardCenterY = rect.top + rect.height / 2;
+        const distance = Math.abs(draggedCardCenterY - cardCenterY);
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          dragOverCard = card;
+        }
+      }
+    }
+    
+    // Update drag over state
+    if (dragState.currentDragOver && dragState.currentDragOver !== dragOverCard) {
+      dragState.currentDragOver.classList.remove("is-drag-over");
+    }
+    
+    // Always check if we need to move placeholder and animate, even if already over the same card
+    if (dragOverCard) {
+      dragOverCard.classList.add("is-drag-over");
+      
+      // Store current positions before DOM change (for FLIP animation)
+      const allCards = Array.from(container.children).filter(child => 
+        child !== dragState.draggedCard && child !== dragState.placeholder && child.classList.contains("habit-card")
+      );
+      const beforePositions = allCards.map(card => ({
+        element: card,
+        top: card.getBoundingClientRect().top
+      }));
+      
+      // Determine where to place the placeholder based on dragged card center
+      const cardRect = dragOverCard.getBoundingClientRect();
+      const draggedCardCenterY = draggedCardRect.top + draggedCardRect.height / 2;
+      const cardCenterY = cardRect.top + cardRect.height / 2;
+      const insertBefore = draggedCardCenterY < cardCenterY;
+      
+      // Get current placeholder position
+      const placeholderCurrentIndex = dragState.placeholder ? Array.from(container.children).indexOf(dragState.placeholder) : -1;
+      const targetCardIndex = Array.from(container.children).indexOf(dragOverCard);
+      const newPlaceholderIndex = insertBefore ? targetCardIndex : targetCardIndex + 1;
+      
+      // Only move placeholder if position actually changed
+      if (placeholderCurrentIndex !== newPlaceholderIndex) {
+        if (insertBefore) {
+          container.insertBefore(dragState.placeholder, dragOverCard);
+        } else {
+          container.insertBefore(dragState.placeholder, dragOverCard.nextSibling);
+        }
+        
+        // Update current drag over
+        dragState.currentDragOver = dragOverCard;
+        
+        // Animate cards to new positions using FLIP
+        requestAnimationFrame(() => {
+          const afterPositions = allCards.map(card => ({
+            element: card,
+            top: card.getBoundingClientRect().top
+          }));
+          
+          // Check if prefers-reduced-motion is enabled
+          const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if (prefersReducedMotion) return;
+          
+          // Apply FLIP animation
+          beforePositions.forEach((before) => {
+            const after = afterPositions.find(a => a.element === before.element);
+            if (after && Math.abs(after.top - before.top) > 1) {
+              const deltaY = before.top - after.top;
+              before.element.style.transform = `translateY(${deltaY}px)`;
+              before.element.style.transition = "none";
+              
+              // Force reflow
+              void before.element.offsetHeight;
+              
+              // Play animation
+              requestAnimationFrame(() => {
+                before.element.style.transform = "";
+                before.element.style.transition = "transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)";
+              });
+            }
+          });
+        });
+      } else {
+        // Update current drag over even if placeholder didn't move
+        dragState.currentDragOver = dragOverCard;
+      }
+    } else if (!dragOverCard && dragState.placeholder && dragState.placeholder.parentNode && dragState.currentDragOver) {
+      // If not over any card anymore, animate cards back
+      dragState.currentDragOver.classList.remove("is-drag-over");
+      dragState.currentDragOver = null;
+      
+      const allCards = Array.from(container.children).filter(child => 
+        child !== dragState.draggedCard && child !== dragState.placeholder && child.classList.contains("habit-card")
+      );
+      const beforePositions = allCards.map(card => ({
+        element: card,
+        top: card.getBoundingClientRect().top
+      }));
+      
+      // Move placeholder to end
+      container.appendChild(dragState.placeholder);
+      
+      // Animate cards back to original positions
+      requestAnimationFrame(() => {
+        const afterPositions = allCards.map(card => ({
+          element: card,
+          top: card.getBoundingClientRect().top
+        }));
+        
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (prefersReducedMotion) return;
+        
+        beforePositions.forEach((before) => {
+          const after = afterPositions.find(a => a.element === before.element);
+          if (after && Math.abs(after.top - before.top) > 1) {
+            const deltaY = before.top - after.top;
+            after.element.style.transform = `translateY(${deltaY}px)`;
+            after.element.style.transition = "none";
+            
+            void after.element.offsetHeight;
+            
+            requestAnimationFrame(() => {
+              after.element.style.transform = "";
+              after.element.style.transition = "transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)";
+            });
+          }
+        });
+      });
+    }
+  }
+  
+  // Handle mouse up (end drag)
+  function handleMouseUp(e) {
+    if (!dragState.draggedCard) return;
+    
+    // Remove drag over state
+    if (dragState.currentDragOver) {
+      dragState.currentDragOver.classList.remove("is-drag-over");
+      dragState.currentDragOver = null;
+    }
+    
+    // Get new index from placeholder position
+    const allChildren = Array.from(container.children);
+    const placeholderIndex = dragState.placeholder ? allChildren.indexOf(dragState.placeholder) : dragState.draggedIndex;
+    const actualNewIndex = placeholderIndex > dragState.draggedIndex ? placeholderIndex - 1 : placeholderIndex;
+    
+    // Remove placeholder
+    if (dragState.placeholder && dragState.placeholder.parentNode) {
+      dragState.placeholder.remove();
+    }
+    
+    // Reset dragged card styles
+    dragState.draggedCard.classList.remove("is-dragging");
+    dragState.draggedCard.style.position = "";
+    dragState.draggedCard.style.width = "";
+    dragState.draggedCard.style.left = "";
+    dragState.draggedCard.style.top = "";
+    dragState.draggedCard.style.margin = "";
+    dragState.draggedCard.style.pointerEvents = "";
+    
+    // Reorder in DOM
+    if (actualNewIndex !== dragState.draggedIndex && actualNewIndex >= 0 && actualNewIndex < allChildren.length) {
+      const targetCard = allChildren[actualNewIndex];
+      if (targetCard !== dragState.draggedCard && targetCard.classList.contains("habit-card")) {
+        container.insertBefore(dragState.draggedCard, targetCard);
+      }
+    }
+    
+    // Reorder habits array
+    if (actualNewIndex !== dragState.draggedIndex && actualNewIndex >= 0 && actualNewIndex < habits.length) {
+      const [movedHabit] = habits.splice(dragState.draggedIndex, 1);
+      habits.splice(actualNewIndex, 0, movedHabit);
+      
+      // Save to localStorage
+      saveHabitsToStorage(habits);
+      
+      // Re-render to update data-index attributes and ensure smooth transition
+      renderHabitStack();
+    } else {
+      // Just reset styles if no reorder happened
+      dragState.draggedCard.style.position = "";
+      dragState.draggedCard.style.width = "";
+      dragState.draggedCard.style.left = "";
+      dragState.draggedCard.style.top = "";
+      dragState.draggedCard.style.margin = "";
+    }
+    
+    // Clean up
+    dragState.draggedCard = null;
+    dragState.draggedIndex = null;
+    dragState.placeholder = null;
+    dragState.dragOffset = { x: 0, y: 0 };
+    
+    // Remove global listeners
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
+  }
+  
+  // Handle mouse down on card (using event delegation)
+  container.addEventListener("mousedown", (e) => {
+    const card = e.target.closest(".habit-card");
+    if (!card) return;
+    
+    // Don't start drag if clicking on interactive elements
+    if (e.target.closest("button") || e.target.closest("input") || e.target.closest("textarea")) {
+      return;
+    }
+    
+    e.preventDefault();
+    
+    dragState.draggedCard = card;
+    dragState.draggedIndex = Array.from(container.children).indexOf(card);
+    const cardRect = card.getBoundingClientRect();
+    
+    dragState.dragOffset.x = e.clientX - cardRect.left;
+    dragState.dragOffset.y = e.clientY - cardRect.top;
+    
+    // Add dragging class
+    card.classList.add("is-dragging");
+    
+    // Create placeholder
+    dragState.placeholder = createPlaceholder();
+    dragState.placeholder.style.height = cardRect.height + "px";
+    card.parentNode.insertBefore(dragState.placeholder, card);
+    
+    // Position dragged card
+    card.style.position = "fixed";
+    card.style.width = cardRect.width + "px";
+    card.style.left = cardRect.left + "px";
+    card.style.top = cardRect.top + "px";
+    card.style.margin = "0";
+    card.style.pointerEvents = "none";
+    
+    // Add global mouse move and up listeners
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  });
 }
 
