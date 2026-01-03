@@ -15,6 +15,147 @@ body {
   justify-content: center;
 }
 
+/* Loading Skeleton Screen */
+.loading-skeleton-screen {
+  width: 100%;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: #ffffff;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 24px;
+}
+
+.loading-skeleton-screen.hidden {
+  display: none;
+}
+
+.skeleton-layout {
+  width: 800px;
+  max-width: 100%;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.skeleton-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 16px;
+}
+
+.skeleton-title {
+  width: 200px;
+  height: 40px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  border-radius: 8px;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-button {
+  width: 140px;
+  height: 36px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  border-radius: 8px;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.skeleton-card {
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeleton-card-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.skeleton-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 73px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  flex-shrink: 0;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.skeleton-text-line {
+  height: 20px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-text-line-title {
+  width: 60%;
+  height: 24px;
+}
+
+.skeleton-text-line-description {
+  width: 80%;
+  height: 16px;
+}
+
+.skeleton-check {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  flex-shrink: 0;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-grid {
+  width: 100%;
+  height: 120px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 .empty-state {
   width: 100%;
   height: 100vh;
@@ -556,7 +697,7 @@ body {
 }
 
 .save-button:active:not(:disabled) {
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(1px);
 }
 
 .save-button-text {
@@ -647,7 +788,7 @@ body {
   background: #ffffff;
   opacity: 0;
   transform: translateX(0);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.3s ease;
   z-index: 1;
   overflow-y: auto;
   pointer-events: none;
@@ -661,14 +802,7 @@ body {
 
 .habit-stack-screen.hidden {
   opacity: 0;
-  transform: translateX(30px);
   pointer-events: none;
-}
-
-.habit-stack-screen:not(.hidden) {
-  opacity: 1;
-  transform: translateX(0);
-  pointer-events: auto;
 }
 
 .habit-stack-layout {
@@ -707,18 +841,60 @@ body {
   flex-direction: column;
   gap: 16px;
   position: relative;
-  will-change: transform;
-  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), 
-              box-shadow 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform, opacity;
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: slideUpFadeIn 0.4s cubic-bezier(0.2, 0, 0, 1) forwards;
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), 
+              box-shadow 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes slideUpFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stagger animation for multiple cards */
+.habit-card:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+.habit-card:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.habit-card:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+.habit-card:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+.habit-card:nth-child(5) {
+  animation-delay: 0.25s;
+}
+
+.habit-card:nth-child(n+6) {
+  animation-delay: 0.3s;
 }
 
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .habit-card {
     transition: none;
+    animation: none;
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -726,14 +902,24 @@ body {
   cursor: grabbing;
 }
 
-/* Dragging state */
+/* Dragging state - Lift: Scale 1.02 + soft shadow */
 .habit-card.is-dragging {
-  opacity: 0.8;
+  position: fixed !important;
   transform: scale(1.02);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 1000;
-  cursor: grabbing;
-  transition: none;
+  cursor: grabbing !important;
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+  opacity: 1;
+  pointer-events: none;
+  margin: 0 !important;
+  width: var(--dragging-card-width, auto);
+  animation: none !important; /* Disable slide-up animation during drag */
+}
+
+/* Drag: 1:1 follow, no easing - handled via inline styles in JS */
+.habit-card.is-dragging.is-following-cursor {
+  transition: none; /* No easing during drag movement */
 }
 
 /* Drop target indicator */
@@ -749,28 +935,11 @@ body {
 
 /* Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
-  .habit-card {
+  .habit-card.is-dragging {
+    transform: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transition: none;
   }
-}
-
-/* Dragging state */
-.habit-card.is-dragging {
-  position: fixed !important;
-  transform: scale(1.03);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  cursor: grabbing !important;
-  transition: box-shadow 140ms ease-out;
-  z-index: 1000;
-  opacity: 0.9;
-  pointer-events: none;
-  margin: 0 !important;
-  width: var(--dragging-card-width, auto);
-}
-
-/* Dragging state with transform override (for following cursor) */
-.habit-card.is-dragging.is-following-cursor {
-  transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -795,9 +964,10 @@ body {
   }
 }
 
-/* FLIP animation for reordering (applied to non-dragging cards) */
+/* Reorder: Other cards slide once - smooth, deliberate animation */
 .habit-card.is-reordering {
-  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform 200ms ease-in-out;
+  will-change: transform;
 }
 
 @media (prefers-reduced-motion: reduce) {

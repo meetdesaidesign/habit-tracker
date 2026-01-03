@@ -398,10 +398,10 @@ function saveHabit() {
 }
 
 // Initialize event listeners and app
-document.addEventListener("DOMContentLoaded", function () {
-  // Initialize app first - loads habits from localStorage, then renders
-  // This ensures no empty state flash - habits are loaded before first render
-  initApp();
+document.addEventListener("DOMContentLoaded", async function () {
+  // Initialize app first - loads habits from localStorage and icons, then renders
+  // This ensures no empty state flash - habits and icons are loaded before first render
+  await initApp();
   
   // Add habit button(s) - use event delegation or attach to all buttons
   // Use event delegation to handle buttons added dynamically
@@ -548,20 +548,40 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
   
-  // Load icons asynchronously (doesn't block initial render)
-  loadIcons().then(() => {
+  // Icons are already loaded in initApp(), so just update hero icon
+  if (HABIT_ICONS.length > 0) {
     updateHeroIcon(selectedIconId);
-  });
+  }
 });
 
 // Initialize app - loads habits from localStorage, then renders
 // This ensures no empty state flash - habits are loaded before first render
-function initApp() {
+async function initApp() {
+  // Show loading skeleton while loading
+  const loadingSkeleton = document.getElementById("loadingSkeletonScreen");
+  if (loadingSkeleton) {
+    loadingSkeleton.classList.remove("hidden");
+  }
+  
+  // Hide empty state and habit stack initially
+  const emptyState = document.querySelector(".empty-state");
+  const habitStackScreen = document.querySelector(".habit-stack-screen");
+  if (emptyState) emptyState.classList.add("hidden");
+  if (habitStackScreen) habitStackScreen.classList.add("hidden");
+  
   // Load habits from localStorage synchronously
   habits = loadHabitsFromStorage();
   
+  // Load icons BEFORE rendering - ensures icons are available for habit cards
+  await loadIcons();
+  
+  // Hide loading skeleton
+  if (loadingSkeleton) {
+    loadingSkeleton.classList.add("hidden");
+  }
+  
   // Render app state based on loaded habits
-  // This is the ONLY initial render call - happens after habits are loaded
+  // This is the ONLY initial render call - happens after habits and icons are loaded
   renderAppState();
 }
 
@@ -986,7 +1006,9 @@ function editHabit(habitId) {
   const habitNameInput = document.querySelector(".habit-name-input");
   const habitDescriptionInput = document.querySelector(".habit-description-input");
   
-  if (habitNameInput) habitNameInput.value = habit.title;
+  if (habitNameInput) {
+    habitNameInput.value = habit.title;
+  }
   if (habitDescriptionInput) {
     habitDescriptionInput.value = habit.description;
     // Auto-resize textarea
@@ -1015,6 +1037,16 @@ function editHabit(habitId) {
   
   // Show the new habit form (same form used for adding)
   showNewHabitForm();
+  
+  // Focus the habit name input and set cursor position after form transition completes
+  setTimeout(() => {
+    if (habitNameInput) {
+      habitNameInput.focus();
+      habitNameInput.setSelectionRange(habit.title.length, habit.title.length);
+    }
+  }, 350); // Wait for transition to complete
+  
+  updateSaveButtonState(); // Update button state based on pre-filled fields
 }
 
 // Create hover actions container for a habit card
@@ -1153,14 +1185,10 @@ function setupDragAndDrop() {
     if (dragOverCard) {
       dragOverCard.classList.add("is-drag-over");
       
-      // Store current positions before DOM change (for FLIP animation)
+      // Get all non-dragged cards for FLIP animation
       const allCards = Array.from(container.children).filter(child => 
         child !== dragState.draggedCard && child !== dragState.placeholder && child.classList.contains("habit-card")
       );
-      const beforePositions = allCards.map(card => ({
-        element: card,
-        top: card.getBoundingClientRect().top
-      }));
       
       // Determine where to place the placeholder based on dragged card center
       const cardRect = dragOverCard.getBoundingClientRect();
@@ -1175,6 +1203,13 @@ function setupDragAndDrop() {
       
       // Only move placeholder if position actually changed
       if (placeholderCurrentIndex !== newPlaceholderIndex) {
+        // FLIP Animation: First - record positions before DOM change
+        const beforeRects = allCards.map(card => ({
+          element: card,
+          rect: card.getBoundingClientRect()
+        }));
+        
+        // Move placeholder in DOM
         if (insertBefore) {
           container.insertBefore(dragState.placeholder, dragOverCard);
         } else {
@@ -1184,33 +1219,47 @@ function setupDragAndDrop() {
         // Update current drag over
         dragState.currentDragOver = dragOverCard;
         
-        // Animate cards to new positions using FLIP
+        // FLIP Animation: Last - record positions after DOM change
         requestAnimationFrame(() => {
-          const afterPositions = allCards.map(card => ({
+          const afterRects = allCards.map(card => ({
             element: card,
-            top: card.getBoundingClientRect().top
+            rect: card.getBoundingClientRect()
           }));
           
           // Check if prefers-reduced-motion is enabled
           const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
           if (prefersReducedMotion) return;
           
-          // Apply FLIP animation
-          beforePositions.forEach((before) => {
-            const after = afterPositions.find(a => a.element === before.element);
-            if (after && Math.abs(after.top - before.top) > 1) {
-              const deltaY = before.top - after.top;
-              before.element.style.transform = `translateY(${deltaY}px)`;
-              before.element.style.transition = "none";
+          // FLIP Animation: Invert - apply transform to move cards back to their old position
+          beforeRects.forEach((before) => {
+            const after = afterRects.find(a => a.element === before.element);
+            if (after) {
+              const deltaY = before.rect.top - after.rect.top;
               
-              // Force reflow
-              void before.element.offsetHeight;
-              
-              // Play animation
-              requestAnimationFrame(() => {
-                before.element.style.transform = "";
-                before.element.style.transition = "transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)";
-              });
+              // Only animate if there's a meaningful change (> 1px)
+              if (Math.abs(deltaY) > 1) {
+                const card = before.element;
+                
+                // Invert: Move card back to its old position using transform
+                card.style.transform = `translateY(${deltaY}px)`;
+                card.style.transition = "none"; // No transition during invert
+                
+                // Force reflow to ensure transform is applied
+                void card.offsetHeight;
+                
+                // FLIP Animation: Play - animate transform back to 0
+                requestAnimationFrame(() => {
+                  card.classList.add("is-reordering");
+                  card.style.transform = "";
+                  card.style.transition = "transform 200ms ease-in-out";
+                  
+                  // Remove reordering class after animation completes
+                  setTimeout(() => {
+                    card.classList.remove("is-reordering");
+                    card.style.transition = "";
+                  }, 200);
+                });
+              }
             }
           });
         });
@@ -1223,40 +1272,60 @@ function setupDragAndDrop() {
       dragState.currentDragOver.classList.remove("is-drag-over");
       dragState.currentDragOver = null;
       
+      // Get all non-dragged cards for FLIP animation
       const allCards = Array.from(container.children).filter(child => 
         child !== dragState.draggedCard && child !== dragState.placeholder && child.classList.contains("habit-card")
       );
-      const beforePositions = allCards.map(card => ({
+      
+      // FLIP Animation: First - record positions before DOM change
+      const beforeRects = allCards.map(card => ({
         element: card,
-        top: card.getBoundingClientRect().top
+        rect: card.getBoundingClientRect()
       }));
       
       // Move placeholder to end
       container.appendChild(dragState.placeholder);
       
-      // Animate cards back to original positions
+      // FLIP Animation: Last - record positions after DOM change
       requestAnimationFrame(() => {
-        const afterPositions = allCards.map(card => ({
+        const afterRects = allCards.map(card => ({
           element: card,
-          top: card.getBoundingClientRect().top
+          rect: card.getBoundingClientRect()
         }));
         
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (prefersReducedMotion) return;
         
-        beforePositions.forEach((before) => {
-          const after = afterPositions.find(a => a.element === before.element);
-          if (after && Math.abs(after.top - before.top) > 1) {
-            const deltaY = before.top - after.top;
-            after.element.style.transform = `translateY(${deltaY}px)`;
-            after.element.style.transition = "none";
+        // FLIP Animation: Invert - apply transform to move cards back to their old position
+        beforeRects.forEach((before) => {
+          const after = afterRects.find(a => a.element === before.element);
+          if (after) {
+            const deltaY = before.rect.top - after.rect.top;
             
-            void after.element.offsetHeight;
-            
-            requestAnimationFrame(() => {
-              after.element.style.transform = "";
-              after.element.style.transition = "transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)";
-            });
+            // Only animate if there's a meaningful change (> 1px)
+            if (Math.abs(deltaY) > 1) {
+              const card = after.element;
+              
+              // Invert: Move card back to its old position using transform
+              card.style.transform = `translateY(${deltaY}px)`;
+              card.style.transition = "none"; // No transition during invert
+              
+              // Force reflow to ensure transform is applied
+              void card.offsetHeight;
+              
+              // FLIP Animation: Play - animate transform back to 0
+              requestAnimationFrame(() => {
+                card.classList.add("is-reordering");
+                card.style.transform = "";
+                card.style.transition = "transform 200ms ease-in-out";
+                
+                // Remove reordering class after animation completes
+                setTimeout(() => {
+                  card.classList.remove("is-reordering");
+                  card.style.transition = "";
+                }, 200);
+              });
+            }
           }
         });
       });
@@ -1273,59 +1342,82 @@ function setupDragAndDrop() {
       dragState.currentDragOver = null;
     }
     
-    // Get new index from placeholder position
-    const allChildren = Array.from(container.children);
-    const placeholderIndex = dragState.placeholder ? allChildren.indexOf(dragState.placeholder) : dragState.draggedIndex;
-    const actualNewIndex = placeholderIndex > dragState.draggedIndex ? placeholderIndex - 1 : placeholderIndex;
+    // Get placeholder position - this is where the card should snap to
+    const placeholder = dragState.placeholder;
+    const placeholderParent = placeholder ? placeholder.parentNode : null;
     
-    // Remove placeholder
-    if (dragState.placeholder && dragState.placeholder.parentNode) {
-      dragState.placeholder.remove();
-    }
-    
-    // Reset dragged card styles
-    dragState.draggedCard.classList.remove("is-dragging");
-    dragState.draggedCard.style.position = "";
-    dragState.draggedCard.style.width = "";
-    dragState.draggedCard.style.left = "";
-    dragState.draggedCard.style.top = "";
-    dragState.draggedCard.style.margin = "";
-    dragState.draggedCard.style.pointerEvents = "";
-    
-    // Reorder in DOM
-    if (actualNewIndex !== dragState.draggedIndex && actualNewIndex >= 0 && actualNewIndex < allChildren.length) {
-      const targetCard = allChildren[actualNewIndex];
-      if (targetCard !== dragState.draggedCard && targetCard.classList.contains("habit-card")) {
-        container.insertBefore(dragState.draggedCard, targetCard);
-      }
-    }
-    
-    // Reorder habits array
-    if (actualNewIndex !== dragState.draggedIndex && actualNewIndex >= 0 && actualNewIndex < habits.length) {
-      const [movedHabit] = habits.splice(dragState.draggedIndex, 1);
-      habits.splice(actualNewIndex, 0, movedHabit);
+    if (placeholder && placeholderParent) {
+      // Calculate offset from current card position to placeholder position
+      const placeholderRect = placeholder.getBoundingClientRect();
+      const cardRect = dragState.draggedCard.getBoundingClientRect();
+      const offsetX = placeholderRect.left - cardRect.left;
+      const offsetY = placeholderRect.top - cardRect.top;
       
-      // Save to localStorage
-      saveHabitsToStorage(habits);
+      // Drop: Ease-out, no bounce - smoothly animate card to placeholder position
+      dragState.draggedCard.classList.remove("is-following-cursor");
+      dragState.draggedCard.style.transition = "transform 200ms ease-out, box-shadow 200ms ease-out";
+      dragState.draggedCard.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(1)`;
+      dragState.draggedCard.style.boxShadow = "none";
       
-      // Re-render to update data-index attributes and ensure smooth transition
-      renderHabitStack();
+      // Wait for transition, then replace placeholder with card (snap into list)
+      setTimeout(() => {
+        // Replace placeholder with the card in normal document flow
+        placeholderParent.replaceChild(dragState.draggedCard, placeholder);
+        
+        // Remove ALL inline styles to restore normal flow positioning
+        dragState.draggedCard.classList.remove("is-dragging");
+        dragState.draggedCard.style.position = "";
+        dragState.draggedCard.style.width = "";
+        dragState.draggedCard.style.left = "";
+        dragState.draggedCard.style.top = "";
+        dragState.draggedCard.style.margin = "";
+        dragState.draggedCard.style.transform = "";
+        dragState.draggedCard.style.transition = "";
+        dragState.draggedCard.style.boxShadow = "";
+        dragState.draggedCard.style.pointerEvents = "";
+        
+        // Get final index in DOM after replacement
+        const finalIndex = Array.from(container.children).indexOf(dragState.draggedCard);
+        
+        // Reorder habits array to match new DOM order
+        if (finalIndex !== dragState.draggedIndex && finalIndex >= 0 && finalIndex < habits.length) {
+          const [movedHabit] = habits.splice(dragState.draggedIndex, 1);
+          habits.splice(finalIndex, 0, movedHabit);
+        }
+        
+        // Save to localStorage (always save, even if order didn't change)
+        saveHabitsToStorage(habits);
+        
+        // Clean up (don't re-render - card is already in correct position in DOM)
+        dragState.draggedCard = null;
+        dragState.draggedIndex = null;
+        dragState.placeholder = null;
+        dragState.dragOffset = { x: 0, y: 0 };
+      }, 200);
     } else {
-      // Just reset styles if no reorder happened
+      // No placeholder found, reset card immediately
+      dragState.draggedCard.classList.remove("is-dragging", "is-following-cursor");
       dragState.draggedCard.style.position = "";
       dragState.draggedCard.style.width = "";
       dragState.draggedCard.style.left = "";
       dragState.draggedCard.style.top = "";
       dragState.draggedCard.style.margin = "";
+      dragState.draggedCard.style.transform = "";
+      dragState.draggedCard.style.transition = "";
+      dragState.draggedCard.style.boxShadow = "";
+      dragState.draggedCard.style.pointerEvents = "";
+      
+      // Clean up
+      dragState.draggedCard = null;
+      dragState.draggedIndex = null;
+      dragState.placeholder = null;
+      dragState.dragOffset = { x: 0, y: 0 };
+      
+      // Save state
+      saveHabitsToStorage(habits);
     }
     
-    // Clean up
-    dragState.draggedCard = null;
-    dragState.draggedIndex = null;
-    dragState.placeholder = null;
-    dragState.dragOffset = { x: 0, y: 0 };
-    
-    // Remove global listeners
+    // Remove global listeners (cleanup happens in setTimeout above)
     document.removeEventListener("mousemove", handleMouseMove);
     document.removeEventListener("mouseup", handleMouseUp);
   }
@@ -1349,21 +1441,23 @@ function setupDragAndDrop() {
     dragState.dragOffset.x = e.clientX - cardRect.left;
     dragState.dragOffset.y = e.clientY - cardRect.top;
     
-    // Add dragging class
+    // Lift: Scale 1.02 + soft shadow - apply lift animation
     card.classList.add("is-dragging");
+    card.classList.add("is-following-cursor");
     
     // Create placeholder
     dragState.placeholder = createPlaceholder();
     dragState.placeholder.style.height = cardRect.height + "px";
     card.parentNode.insertBefore(dragState.placeholder, card);
     
-    // Position dragged card
+    // Position dragged card - Drag: 1:1 follow, no easing (handled via inline styles)
     card.style.position = "fixed";
     card.style.width = cardRect.width + "px";
     card.style.left = cardRect.left + "px";
     card.style.top = cardRect.top + "px";
     card.style.margin = "0";
     card.style.pointerEvents = "none";
+    card.style.transition = "none"; // No easing during drag movement
     
     // Add global mouse move and up listeners
     document.addEventListener("mousemove", handleMouseMove);
