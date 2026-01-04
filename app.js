@@ -1405,8 +1405,7 @@ function setupDragAndDrop() {
       // Replace placeholder with the card in normal document flow immediately
       placeholderParent.replaceChild(dragState.draggedCard, placeholder);
       
-      // Set transform to zero and remove ALL inline styles to restore normal flow positioning
-      dragState.draggedCard.style.transform = "translate3d(0, 0, 0)";
+      // Remove ALL inline styles to restore normal flow positioning
       dragState.draggedCard.classList.remove("is-dragging");
       dragState.draggedCard.style.position = "";
       dragState.draggedCard.style.width = "";
@@ -1418,33 +1417,17 @@ function setupDragAndDrop() {
       dragState.draggedCard.style.boxShadow = "";
       dragState.draggedCard.style.pointerEvents = "";
       
-      // Store reference to card before cleanup
-      const droppedCard = dragState.draggedCard;
-      
       // Get final index in DOM after replacement
-      const finalIndex = Array.from(container.children).indexOf(droppedCard);
+      const finalIndex = Array.from(container.children).indexOf(dragState.draggedCard);
       
-      // Reorder habits array to match new DOM order (persist in background)
+      // Reorder habits array to match new DOM order
       if (finalIndex !== dragState.draggedIndex && finalIndex >= 0 && finalIndex < habits.length) {
         const [movedHabit] = habits.splice(dragState.draggedIndex, 1);
         habits.splice(finalIndex, 0, movedHabit);
       }
       
-      // Remove no-transition class after DOM position is finalized
-      requestAnimationFrame(() => {
-        droppedCard.classList.remove("no-transition");
-      });
-      
-      // Persist order in background (debounced) - don't block UI
-      if (typeof window.saveHabitsDebounceTimeout !== 'undefined') {
-        clearTimeout(window.saveHabitsDebounceTimeout);
-      }
-      window.saveHabitsDebounceTimeout = setTimeout(() => {
-        saveHabitsToStorage(habits);
-        if (typeof window.saveHabitsSmart === 'function') {
-          window.saveHabitsSmart(habits).catch(err => console.error('Save error:', err));
-        }
-      }, 300);
+      // Save to localStorage (always save, even if order didn't change)
+      saveHabitsToStorage(habits);
       
       // Clean up (don't re-render - card is already in correct position in DOM)
       dragState.draggedCard = null;
@@ -1453,7 +1436,7 @@ function setupDragAndDrop() {
       dragState.dragOffset = { x: 0, y: 0 };
     } else {
       // No placeholder found, reset card immediately
-      dragState.draggedCard.classList.remove("is-dragging", "is-following-cursor", "no-transition");
+      dragState.draggedCard.classList.remove("is-dragging", "is-following-cursor");
       dragState.draggedCard.style.position = "";
       dragState.draggedCard.style.width = "";
       dragState.draggedCard.style.left = "";
@@ -1501,7 +1484,6 @@ function setupDragAndDrop() {
     // Lift: Scale 1.02 + soft shadow - apply lift animation
     card.classList.add("is-dragging");
     card.classList.add("is-following-cursor");
-    card.classList.add("no-transition");
     
     // Create placeholder
     dragState.placeholder = createPlaceholder();
