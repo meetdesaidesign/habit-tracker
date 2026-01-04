@@ -14,6 +14,9 @@ function saveHabitsToStorage(habits) {
   }
 }
 
+// Expose to window for habitsSave.js
+window.saveHabitsToStorage = saveHabitsToStorage;
+
 function loadHabitsFromStorage() {
   try {
     const stored = localStorage.getItem("habits");
@@ -87,6 +90,10 @@ let HABIT_ICONS = [];
 
 // Load icons from Assets folder
 async function loadIcons() {
+  // If icons are already loaded, return early
+  if (HABIT_ICONS.length > 0) {
+    return;
+  }
   const iconPromises = ICON_DEFINITIONS.map(async (iconDef) => {
     try {
       const response = await fetch(`Assets/Dropdown Icons/heroicons-solid/${iconDef.file}`);
@@ -118,10 +125,15 @@ function showNewHabitForm() {
   const emptyState = document.querySelector(".empty-state");
   const newHabitScreen = document.querySelector(".new-habit-screen");
   const habitStackScreen = document.querySelector(".habit-stack-screen");
+  const logoutButton = document.getElementById("btnLogout") || document.querySelector(".logout-button");
   
   // Hide empty state and habit stack, show new habit form
   if (emptyState) emptyState.classList.add("hidden");
   if (habitStackScreen) habitStackScreen.classList.add("hidden");
+  if (logoutButton) {
+    logoutButton.classList.add("hidden");
+    logoutButton.style.display = "none";
+  }
   if (newHabitScreen) {
     newHabitScreen.classList.remove("hidden");
     
@@ -317,7 +329,9 @@ function updateSaveButtonState() {
 }
 
 // Handle save button
-function saveHabit() {
+async function saveHabit() {
+  console.log("🔵 saveHabit() called");
+  
   const habitNameInput = document.querySelector(".habit-name-input");
   const habitDescriptionInput = document.querySelector(".habit-description-input");
   
@@ -325,6 +339,7 @@ function saveHabit() {
   const habitDescription = habitDescriptionInput ? habitDescriptionInput.value.trim() : "";
   
   if (!habitName || !habitDescription) {
+    console.log("❌ saveHabit: form validation failed");
     return;
   }
   
@@ -361,14 +376,32 @@ function saveHabit() {
     habits.unshift(newHabit);
   }
   
-  // Save to localStorage after creating or updating
-  saveHabitsToStorage(habits);
+  // Save to Supabase
+  await window.saveHabitsSmart(habits);
   
-  // Clear form
+  // Hide the new habit form FIRST - EXACTLY like back button does
+  const logoutButton = document.getElementById("btnLogout") || document.querySelector(".logout-button");
+  if (newHabitScreen) {
+    newHabitScreen.classList.add("hidden");
+  }
+  if (logoutButton) {
+    logoutButton.classList.remove("hidden");
+    logoutButton.style.display = "";
+  }
+  
+  // Reset form fields without affecting habits
   if (habitNameInput) habitNameInput.value = "";
-  if (habitDescriptionInput) habitDescriptionInput.value = "";
+  if (habitDescriptionInput) {
+    habitDescriptionInput.value = "";
+    habitDescriptionInput.style.height = "auto";
+  }
   
-  // Reset to defaults
+  // Clear editing state if present
+  if (newHabitScreen) {
+    newHabitScreen.removeAttribute("data-editing-habit-id");
+  }
+  
+  // Reset form to defaults
   selectedColor = "#f9736f";
   selectedIconId = "book-open";
   updateHeroIcon(selectedIconId);
@@ -383,18 +416,8 @@ function saveHabit() {
     }
   });
   
-  // Hide new habit form
-  if (newHabitScreen) {
-    newHabitScreen.classList.add("hidden");
-  }
-  
-  // Re-render app state to show habit stack with the updated habit
-  if (typeof renderAppState === 'function') {
-    renderAppState();
-  } else {
-    // Fallback: if renderAppState doesn't exist, just show empty state for now
-    showEmptyState();
-  }
+  // Render the correct view based on habits.length (single source of truth)
+  renderAppState();
 }
 
 // Initialize event listeners and app
@@ -418,8 +441,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     backButton.addEventListener("click", function() {
       // Hide the new habit form
       const newHabitScreen = document.querySelector(".new-habit-screen");
+      const logoutButton = document.getElementById("btnLogout") || document.querySelector(".logout-button");
       if (newHabitScreen) {
         newHabitScreen.classList.add("hidden");
+      }
+      if (logoutButton) {
+        logoutButton.classList.remove("hidden");
+        logoutButton.style.display = "";
       }
       
       // Reset form fields without affecting habits
@@ -475,7 +503,11 @@ document.addEventListener("DOMContentLoaded", async function () {
   // Save button
   const saveButton = document.querySelector(".save-button");
   if (saveButton) {
-    saveButton.addEventListener("click", saveHabit);
+    saveButton.addEventListener("click", function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      saveHabit();
+    });
   }
   
   // Auto-resize textarea
@@ -556,7 +588,22 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 // Initialize app - loads habits from localStorage, then renders
 // This ensures no empty state flash - habits are loaded before first render
+// Ensure icons are loaded (can be called multiple times safely)
+window.ensureIconsLoaded = loadIcons;
+
 async function initApp() {
+  // Load icons - always needed for rendering habit cards
+  await loadIcons();
+  
+  // If Supabase is available, don't load from localStorage
+  // Authentication will handle loading habits from Supabase
+  if (window.supabaseClient) {
+    // Just initialize habits as empty array, Supabase will load them
+    habits = [];
+    return;
+  }
+  
+  // Otherwise, load from localStorage (fallback for non-authenticated mode)
   // Show loading skeleton while loading
   const loadingSkeleton = document.getElementById("loadingSkeletonScreen");
   if (loadingSkeleton) {
@@ -571,9 +618,6 @@ async function initApp() {
   
   // Load habits from localStorage synchronously
   habits = loadHabitsFromStorage();
-  
-  // Load icons BEFORE rendering - ensures icons are available for habit cards
-  await loadIcons();
   
   // Hide loading skeleton
   if (loadingSkeleton) {
@@ -590,10 +634,15 @@ function renderAppState() {
   const emptyState = document.querySelector(".empty-state");
   const habitStackScreen = document.querySelector(".habit-stack-screen");
   const newHabitScreen = document.querySelector(".new-habit-screen");
+  const logoutButton = document.querySelector(".logout-button");
   
   // Ensure new habit screen is hidden when rendering app state
   if (newHabitScreen) {
     newHabitScreen.classList.add("hidden");
+  }
+  // Show logout button when form is hidden
+  if (logoutButton) {
+    logoutButton.classList.remove("hidden");
   }
   
   if (habits.length === 0) {
@@ -608,6 +657,14 @@ function renderAppState() {
     renderHabitStack();
   }
 }
+
+// Make renderAppState accessible globally
+window.renderAppState = renderAppState;
+
+// Function to set habits from Supabase (called by setHabitsFromCloud)
+window.setHabits = function(newHabits) {
+  habits = newHabits || [];
+};
 
 // Render habit stack screen
 function renderHabitStack() {
@@ -1119,15 +1176,10 @@ function setupDragAndDrop() {
   if (dragState.isSetup) return;
   dragState.isSetup = true;
   
-  // Create placeholder element
+  // Create placeholder element - invisible but maintains height to prevent list collapse
   function createPlaceholder() {
     const placeholder = document.createElement("div");
     placeholder.className = "habit-card-placeholder";
-    placeholder.style.height = "0";
-    placeholder.style.marginBottom = "16px";
-    placeholder.style.border = "2px dashed #ccc";
-    placeholder.style.borderRadius = "8px";
-    placeholder.style.transition = "height 200ms ease";
     return placeholder;
   }
   
@@ -1251,13 +1303,13 @@ function setupDragAndDrop() {
                 requestAnimationFrame(() => {
                   card.classList.add("is-reordering");
                   card.style.transform = "";
-                  card.style.transition = "transform 200ms ease-in-out";
+                  card.style.transition = "transform 250ms cubic-bezier(0.2, 0, 0, 1)";
                   
                   // Remove reordering class after animation completes
                   setTimeout(() => {
                     card.classList.remove("is-reordering");
                     card.style.transition = "";
-                  }, 200);
+                  }, 250);
                 });
               }
             }
@@ -1313,18 +1365,18 @@ function setupDragAndDrop() {
               // Force reflow to ensure transform is applied
               void card.offsetHeight;
               
-              // FLIP Animation: Play - animate transform back to 0
-              requestAnimationFrame(() => {
-                card.classList.add("is-reordering");
-                card.style.transform = "";
-                card.style.transition = "transform 200ms ease-in-out";
-                
-                // Remove reordering class after animation completes
-                setTimeout(() => {
-                  card.classList.remove("is-reordering");
-                  card.style.transition = "";
-                }, 200);
-              });
+                // FLIP Animation: Play - animate transform back to 0
+                requestAnimationFrame(() => {
+                  card.classList.add("is-reordering");
+                  card.style.transform = "";
+                  card.style.transition = "transform 250ms cubic-bezier(0.2, 0, 0, 1)";
+                  
+                  // Remove reordering class after animation completes
+                  setTimeout(() => {
+                    card.classList.remove("is-reordering");
+                    card.style.transition = "";
+                  }, 250);
+                });
             }
           }
         });
@@ -1347,56 +1399,61 @@ function setupDragAndDrop() {
     const placeholderParent = placeholder ? placeholder.parentNode : null;
     
     if (placeholder && placeholderParent) {
-      // Calculate offset from current card position to placeholder position
-      const placeholderRect = placeholder.getBoundingClientRect();
-      const cardRect = dragState.draggedCard.getBoundingClientRect();
-      const offsetX = placeholderRect.left - cardRect.left;
-      const offsetY = placeholderRect.top - cardRect.top;
-      
-      // Drop: Ease-out, no bounce - smoothly animate card to placeholder position
+      // Drop: Snap instantly into place (no animation)
       dragState.draggedCard.classList.remove("is-following-cursor");
-      dragState.draggedCard.style.transition = "transform 200ms ease-out, box-shadow 200ms ease-out";
-      dragState.draggedCard.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(1)`;
-      dragState.draggedCard.style.boxShadow = "none";
       
-      // Wait for transition, then replace placeholder with card (snap into list)
-      setTimeout(() => {
-        // Replace placeholder with the card in normal document flow
-        placeholderParent.replaceChild(dragState.draggedCard, placeholder);
-        
-        // Remove ALL inline styles to restore normal flow positioning
-        dragState.draggedCard.classList.remove("is-dragging");
-        dragState.draggedCard.style.position = "";
-        dragState.draggedCard.style.width = "";
-        dragState.draggedCard.style.left = "";
-        dragState.draggedCard.style.top = "";
-        dragState.draggedCard.style.margin = "";
-        dragState.draggedCard.style.transform = "";
-        dragState.draggedCard.style.transition = "";
-        dragState.draggedCard.style.boxShadow = "";
-        dragState.draggedCard.style.pointerEvents = "";
-        
-        // Get final index in DOM after replacement
-        const finalIndex = Array.from(container.children).indexOf(dragState.draggedCard);
-        
-        // Reorder habits array to match new DOM order
-        if (finalIndex !== dragState.draggedIndex && finalIndex >= 0 && finalIndex < habits.length) {
-          const [movedHabit] = habits.splice(dragState.draggedIndex, 1);
-          habits.splice(finalIndex, 0, movedHabit);
-        }
-        
-        // Save to localStorage (always save, even if order didn't change)
+      // Replace placeholder with the card in normal document flow immediately
+      placeholderParent.replaceChild(dragState.draggedCard, placeholder);
+      
+      // Set transform to zero and remove ALL inline styles to restore normal flow positioning
+      dragState.draggedCard.style.transform = "translate3d(0, 0, 0)";
+      dragState.draggedCard.classList.remove("is-dragging");
+      dragState.draggedCard.style.position = "";
+      dragState.draggedCard.style.width = "";
+      dragState.draggedCard.style.left = "";
+      dragState.draggedCard.style.top = "";
+      dragState.draggedCard.style.margin = "";
+      dragState.draggedCard.style.transform = "";
+      dragState.draggedCard.style.transition = "";
+      dragState.draggedCard.style.boxShadow = "";
+      dragState.draggedCard.style.pointerEvents = "";
+      
+      // Store reference to card before cleanup
+      const droppedCard = dragState.draggedCard;
+      
+      // Get final index in DOM after replacement
+      const finalIndex = Array.from(container.children).indexOf(droppedCard);
+      
+      // Reorder habits array to match new DOM order (persist in background)
+      if (finalIndex !== dragState.draggedIndex && finalIndex >= 0 && finalIndex < habits.length) {
+        const [movedHabit] = habits.splice(dragState.draggedIndex, 1);
+        habits.splice(finalIndex, 0, movedHabit);
+      }
+      
+      // Remove no-transition class after DOM position is finalized
+      requestAnimationFrame(() => {
+        droppedCard.classList.remove("no-transition");
+      });
+      
+      // Persist order in background (debounced) - don't block UI
+      if (typeof window.saveHabitsDebounceTimeout !== 'undefined') {
+        clearTimeout(window.saveHabitsDebounceTimeout);
+      }
+      window.saveHabitsDebounceTimeout = setTimeout(() => {
         saveHabitsToStorage(habits);
-        
-        // Clean up (don't re-render - card is already in correct position in DOM)
-        dragState.draggedCard = null;
-        dragState.draggedIndex = null;
-        dragState.placeholder = null;
-        dragState.dragOffset = { x: 0, y: 0 };
-      }, 200);
+        if (typeof window.saveHabitsSmart === 'function') {
+          window.saveHabitsSmart(habits).catch(err => console.error('Save error:', err));
+        }
+      }, 300);
+      
+      // Clean up (don't re-render - card is already in correct position in DOM)
+      dragState.draggedCard = null;
+      dragState.draggedIndex = null;
+      dragState.placeholder = null;
+      dragState.dragOffset = { x: 0, y: 0 };
     } else {
       // No placeholder found, reset card immediately
-      dragState.draggedCard.classList.remove("is-dragging", "is-following-cursor");
+      dragState.draggedCard.classList.remove("is-dragging", "is-following-cursor", "no-transition");
       dragState.draggedCard.style.position = "";
       dragState.draggedCard.style.width = "";
       dragState.draggedCard.style.left = "";
@@ -1444,6 +1501,7 @@ function setupDragAndDrop() {
     // Lift: Scale 1.02 + soft shadow - apply lift animation
     card.classList.add("is-dragging");
     card.classList.add("is-following-cursor");
+    card.classList.add("no-transition");
     
     // Create placeholder
     dragState.placeholder = createPlaceholder();
