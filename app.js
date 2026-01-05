@@ -595,15 +595,28 @@ async function initApp() {
   // Load icons - always needed for rendering habit cards
   await loadIcons();
   
-  // If Supabase is available, don't load from localStorage
+  // Check if we're in guest mode or if Supabase is not available
+  const guestMode = window.isGuestMode && window.isGuestMode();
+  const hasSupabase = window.supabaseClient;
+  
+  // If Supabase is available and we're not in guest mode, don't load from localStorage
   // Authentication will handle loading habits from Supabase
-  if (window.supabaseClient) {
-    // Just initialize habits as empty array, Supabase will load them
-    habits = [];
-    return;
+  if (hasSupabase && !guestMode) {
+    // Check if there's an active session
+    try {
+      const { data } = await window.supabaseClient.auth.getSession();
+      if (data && data.session) {
+        // Just initialize habits as empty array, Supabase will load them
+        habits = [];
+        return;
+      }
+    } catch (error) {
+      console.log("Error checking session:", error);
+      // Fall through to localStorage loading
+    }
   }
   
-  // Otherwise, load from localStorage (fallback for non-authenticated mode)
+  // Load from localStorage (guest mode or no Supabase or no session)
   // Show loading skeleton while loading
   const loadingSkeleton = document.getElementById("loadingSkeletonScreen");
   if (loadingSkeleton) {
