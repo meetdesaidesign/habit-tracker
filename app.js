@@ -206,6 +206,16 @@ function lightenColor(hex, lightness = 94) {
   return `hsl(${Math.round(h * 360)}, ${Math.round(s * 100)}%, ${lightness}%)`;
 }
 
+// Helper function to convert hex to RGB
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+}
+
 // Set active color and update UI
 function setActiveColor(color) {
   const iconHeader = document.querySelector(".icon-header");
@@ -218,6 +228,12 @@ function setActiveColor(color) {
     // Set lighter version on header background
     const lightColor = lightenColor(color, 94);
     iconHeader.style.backgroundColor = lightColor;
+    
+    // Set shadow color based on selected color (50% opacity)
+    const rgb = hexToRgb(color);
+    if (rgb) {
+      iconCircle.style.setProperty('--icon-circle-shadow-color', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.50)`);
+    }
     
     // Trigger subtle pop animation on icon circle
     iconCircle.classList.remove("pop");
@@ -263,6 +279,7 @@ function updateHeroIcon(iconId) {
 function openIconPicker() {
   const popover = document.getElementById("iconPickerPopover");
   const grid = document.getElementById("iconPickerGrid");
+  const iconHeader = document.querySelector(".icon-header");
   
   if (popover && grid) {
     // Render all icons
@@ -270,15 +287,26 @@ function openIconPicker() {
     
     // Show popover
     popover.classList.remove("hidden");
+    
+    // Add active class to icon header for styling
+    if (iconHeader) {
+      iconHeader.classList.add("picker-open");
+    }
   }
 }
 
 // Close icon picker
 function closeIconPicker() {
   const popover = document.getElementById("iconPickerPopover");
+  const iconHeader = document.querySelector(".icon-header");
   
   if (popover) {
     popover.classList.add("hidden");
+  }
+  
+  // Remove active class from icon header
+  if (iconHeader) {
+    iconHeader.classList.remove("picker-open");
   }
 }
 
