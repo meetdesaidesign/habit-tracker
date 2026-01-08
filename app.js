@@ -612,6 +612,26 @@ document.addEventListener("DOMContentLoaded", async function () {
   if (HABIT_ICONS.length > 0) {
     updateHeroIcon(selectedIconId);
   }
+  
+  // Calendar modal close handlers
+  const closeButton = document.getElementById("closeCalendarModal");
+  const modal = document.getElementById("habitCalendarModal");
+  const backdrop = modal ? modal.querySelector(".habit-calendar-backdrop") : null;
+  
+  if (closeButton) {
+    closeButton.addEventListener("click", closeCalendarModal);
+  }
+  
+  if (backdrop) {
+    backdrop.addEventListener("click", closeCalendarModal);
+  }
+  
+  // Close modal on Escape key
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal && modal.classList.contains("is-open")) {
+      closeCalendarModal();
+    }
+  });
 });
 
 // Initialize app - loads habits from localStorage, then renders
@@ -715,13 +735,8 @@ function renderHabitStack() {
   container.innerHTML = "";
   habits.forEach((habit, index) => {
     const card = renderHabitCard(habit);
-    // Set data-index for drag-and-drop tracking
-    card.setAttribute("data-index", index.toString());
     container.appendChild(card);
   });
-  
-  // Setup drag and drop after cards are rendered
-  setupDragAndDrop();
   
   // Recalculate grid sizes after all cards are rendered (for window resize)
   setTimeout(() => {
@@ -967,6 +982,18 @@ function renderHabitCard(habit) {
     calculateAndSetGridSize(card, yearGrid, habit);
   }, 0);
   
+  // Add click handler to open calendar modal (but not on interactive elements)
+  card.addEventListener("click", (e) => {
+    // Don't open modal if clicking on interactive elements
+    if (e.target.closest("button") || 
+        e.target.closest(".habit-card-hover-actions") ||
+        e.target.closest(".habit-year-grid")) {
+      return;
+    }
+    
+    openCalendarModal(habit);
+  });
+  
   return card;
 }
 
@@ -1198,351 +1225,213 @@ function createHoverActions(habitId) {
   return hoverActions;
 }
 
-// Drag and drop state (shared across all drag operations)
-let dragState = {
-  draggedCard: null,
-  draggedIndex: null,
-  placeholder: null,
-  dragOffset: { x: 0, y: 0 },
-  currentDragOver: null,
-  isSetup: false
-};
-
-// Setup drag and drop for habit cards (only once using event delegation)
-function setupDragAndDrop() {
-  const container = document.getElementById("habitCardsContainer");
-  if (!container) return;
+// Calendar Modal Functions
+function openCalendarModal(habit) {
+  const modal = document.getElementById("habitCalendarModal");
+  if (!modal) return;
   
-  // Only set up listeners once (container persists, so this is safe)
-  if (dragState.isSetup) return;
-  dragState.isSetup = true;
+  // Set habit info in modal
+  const iconContainer = document.getElementById("modalHabitIcon");
+  const titleEl = document.getElementById("modalHabitTitle");
+  const descriptionEl = document.getElementById("modalHabitDescription");
   
-  // Create placeholder element - invisible but maintains height to prevent list collapse
-  function createPlaceholder() {
-    const placeholder = document.createElement("div");
-    placeholder.className = "habit-card-placeholder";
-    return placeholder;
+  if (iconContainer) {
+    iconContainer.style.backgroundColor = habit.color;
+    const icon = HABIT_ICONS.find(i => i.id === habit.iconId) || HABIT_ICONS[0];
+    if (icon) {
+      iconContainer.innerHTML = icon.svg.replace(/currentColor/g, "#ffffff");
+    }
   }
   
-  // Handle mouse move during drag
-  function handleMouseMove(e) {
-    if (!dragState.draggedCard) return;
+  if (titleEl) titleEl.textContent = habit.title;
+  if (descriptionEl) descriptionEl.textContent = habit.description;
+  
+  // Render calendar
+  renderCalendar(habit);
+  
+  // Open modal with smooth transition
+  modal.classList.add("is-open");
+  document.body.style.overflow = "hidden"; // Prevent background scrolling
+}
+
+function closeCalendarModal() {
+  const modal = document.getElementById("habitCalendarModal");
+  if (!modal) return;
+  
+  modal.classList.remove("is-open");
+  document.body.style.overflow = ""; // Restore scrolling
+}
+
+function renderCalendar(habit) {
+  const grid = document.getElementById("habitCalendarGrid");
+  if (!grid) return;
+  
+  grid.innerHTML = "";
+  
+  const year = new Date().getFullYear();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const startDate = new Date(year, 0, 1);
+  const endDate = new Date(year, 11, 31);
+  
+  // Add weekday labels
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  weekdays.forEach(day => {
+    const label = document.createElement("div");
+    label.className = "habit-calendar-weekday-label";
+    label.textContent = day;
+    grid.appendChild(label);
+  });
+  
+  // Generate all dates for the year, organized by month
+  let currentDate = new Date(startDate);
+  let currentMonth = -1;
+  
+  while (currentDate <= endDate) {
+    const date = new Date(currentDate);
+    const month = date.getMonth();
     
-    // Update dragged card position
-    const newX = e.clientX - dragState.dragOffset.x;
-    const newY = e.clientY - dragState.dragOffset.y;
-    dragState.draggedCard.style.left = newX + "px";
-    dragState.draggedCard.style.top = newY + "px";
-    
-    // Get dragged card bounds (using fixed position coordinates)
-    const draggedCardRect = dragState.draggedCard.getBoundingClientRect();
-    const draggedCardTop = draggedCardRect.top;
-    const draggedCardBottom = draggedCardRect.bottom;
-    const draggedCardCenterY = draggedCardTop + draggedCardRect.height / 2;
-    
-    // Find which card we're overlapping with (check for any overlap, not just mouse position)
-    const cards = Array.from(container.children).filter(child => 
-      child !== dragState.draggedCard && child !== dragState.placeholder && child.classList.contains("habit-card")
-    );
-    
-    let dragOverCard = null;
-    let minDistance = Infinity;
-    
-    for (let i = 0; i < cards.length; i++) {
-      const card = cards[i];
-      const rect = card.getBoundingClientRect();
-      
-      // Check if dragged card overlaps with this card (any vertical overlap)
-      // Use a small threshold to trigger earlier
-      const threshold = 20; // pixels
-      const overlaps = !(draggedCardBottom + threshold < rect.top || draggedCardTop - threshold > rect.bottom);
-      
-      if (overlaps) {
-        // Calculate distance from dragged card center to card center
-        const cardCenterY = rect.top + rect.height / 2;
-        const distance = Math.abs(draggedCardCenterY - cardCenterY);
-        
-        if (distance < minDistance) {
-          minDistance = distance;
-          dragOverCard = card;
+    // Add month label when month changes
+    if (month !== currentMonth) {
+      // If not the first month, add empty cells to complete the previous month's week
+      if (currentMonth !== -1) {
+        const lastDayOfPrevMonth = new Date(year, month, 0);
+        const lastDayOfWeek = lastDayOfPrevMonth.getDay();
+        const remainingDays = 6 - lastDayOfWeek;
+        for (let i = 0; i < remainingDays; i++) {
+          const empty = document.createElement("div");
+          grid.appendChild(empty);
         }
       }
-    }
-    
-    // Update drag over state
-    if (dragState.currentDragOver && dragState.currentDragOver !== dragOverCard) {
-      dragState.currentDragOver.classList.remove("is-drag-over");
-    }
-    
-    // Always check if we need to move placeholder and animate, even if already over the same card
-    if (dragOverCard) {
-      dragOverCard.classList.add("is-drag-over");
       
-      // Get all non-dragged cards for FLIP animation
-      const allCards = Array.from(container.children).filter(child => 
-        child !== dragState.draggedCard && child !== dragState.placeholder && child.classList.contains("habit-card")
-      );
+      const monthLabel = document.createElement("div");
+      monthLabel.className = "habit-calendar-month-label";
+      monthLabel.textContent = date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      grid.appendChild(monthLabel);
       
-      // Determine where to place the placeholder based on dragged card center
-      const cardRect = dragOverCard.getBoundingClientRect();
-      const draggedCardCenterY = draggedCardRect.top + draggedCardRect.height / 2;
-      const cardCenterY = cardRect.top + cardRect.height / 2;
-      const insertBefore = draggedCardCenterY < cardCenterY;
-      
-      // Get current placeholder position
-      const placeholderCurrentIndex = dragState.placeholder ? Array.from(container.children).indexOf(dragState.placeholder) : -1;
-      const targetCardIndex = Array.from(container.children).indexOf(dragOverCard);
-      const newPlaceholderIndex = insertBefore ? targetCardIndex : targetCardIndex + 1;
-      
-      // Only move placeholder if position actually changed
-      if (placeholderCurrentIndex !== newPlaceholderIndex) {
-        // FLIP Animation: First - record positions before DOM change
-        const beforeRects = allCards.map(card => ({
-          element: card,
-          rect: card.getBoundingClientRect()
-        }));
-        
-        // Move placeholder in DOM
-        if (insertBefore) {
-          container.insertBefore(dragState.placeholder, dragOverCard);
-        } else {
-          container.insertBefore(dragState.placeholder, dragOverCard.nextSibling);
-        }
-        
-        // Update current drag over
-        dragState.currentDragOver = dragOverCard;
-        
-        // FLIP Animation: Last - record positions after DOM change
-        requestAnimationFrame(() => {
-          const afterRects = allCards.map(card => ({
-            element: card,
-            rect: card.getBoundingClientRect()
-          }));
-          
-          // Check if prefers-reduced-motion is enabled
-          const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-          if (prefersReducedMotion) return;
-          
-          // FLIP Animation: Invert - apply transform to move cards back to their old position
-          beforeRects.forEach((before) => {
-            const after = afterRects.find(a => a.element === before.element);
-            if (after) {
-              const deltaY = before.rect.top - after.rect.top;
-              
-              // Only animate if there's a meaningful change (> 1px)
-              if (Math.abs(deltaY) > 1) {
-                const card = before.element;
-                
-                // Invert: Move card back to its old position using transform
-                card.style.transform = `translateY(${deltaY}px)`;
-                card.style.transition = "none"; // No transition during invert
-                
-                // Force reflow to ensure transform is applied
-                void card.offsetHeight;
-                
-                // FLIP Animation: Play - animate transform back to 0
-                requestAnimationFrame(() => {
-                  card.classList.add("is-reordering");
-                  card.style.transform = "";
-                  card.style.transition = "transform 250ms cubic-bezier(0.2, 0, 0, 1)";
-                  
-                  // Remove reordering class after animation completes
-                  setTimeout(() => {
-                    card.classList.remove("is-reordering");
-                    card.style.transition = "";
-                  }, 250);
-                });
-              }
-            }
-          });
-        });
-      } else {
-        // Update current drag over even if placeholder didn't move
-        dragState.currentDragOver = dragOverCard;
+      // Add empty cells for the first week of the month
+      const firstDayOfMonthDay = date.getDay();
+      for (let i = 0; i < firstDayOfMonthDay; i++) {
+        const empty = document.createElement("div");
+        grid.appendChild(empty);
       }
-    } else if (!dragOverCard && dragState.placeholder && dragState.placeholder.parentNode && dragState.currentDragOver) {
-      // If not over any card anymore, animate cards back
-      dragState.currentDragOver.classList.remove("is-drag-over");
-      dragState.currentDragOver = null;
       
-      // Get all non-dragged cards for FLIP animation
-      const allCards = Array.from(container.children).filter(child => 
-        child !== dragState.draggedCard && child !== dragState.placeholder && child.classList.contains("habit-card")
-      );
-      
-      // FLIP Animation: First - record positions before DOM change
-      const beforeRects = allCards.map(card => ({
-        element: card,
-        rect: card.getBoundingClientRect()
-      }));
-      
-      // Move placeholder to end
-      container.appendChild(dragState.placeholder);
-      
-      // FLIP Animation: Last - record positions after DOM change
-      requestAnimationFrame(() => {
-        const afterRects = allCards.map(card => ({
-          element: card,
-          rect: card.getBoundingClientRect()
-        }));
-        
-        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if (prefersReducedMotion) return;
-        
-        // FLIP Animation: Invert - apply transform to move cards back to their old position
-        beforeRects.forEach((before) => {
-          const after = afterRects.find(a => a.element === before.element);
-          if (after) {
-            const deltaY = before.rect.top - after.rect.top;
-            
-            // Only animate if there's a meaningful change (> 1px)
-            if (Math.abs(deltaY) > 1) {
-              const card = after.element;
-              
-              // Invert: Move card back to its old position using transform
-              card.style.transform = `translateY(${deltaY}px)`;
-              card.style.transition = "none"; // No transition during invert
-              
-              // Force reflow to ensure transform is applied
-              void card.offsetHeight;
-              
-                // FLIP Animation: Play - animate transform back to 0
-                requestAnimationFrame(() => {
-                  card.classList.add("is-reordering");
-                  card.style.transform = "";
-                  card.style.transition = "transform 250ms cubic-bezier(0.2, 0, 0, 1)";
-                  
-                  // Remove reordering class after animation completes
-                  setTimeout(() => {
-                    card.classList.remove("is-reordering");
-                    card.style.transition = "";
-                  }, 250);
-                });
-            }
-          }
-        });
+      currentMonth = month;
+    }
+    
+    const dateString = getDateString(date);
+    const isCompleted = habit.completedDates && habit.completedDates.includes(dateString);
+    const isFuture = date > today;
+    const isToday = dateString === getDateString(today);
+    
+    const dateEl = document.createElement("div");
+    dateEl.className = "habit-calendar-date";
+    dateEl.setAttribute("data-date", dateString);
+    
+    if (isFuture) {
+      dateEl.classList.add("is-future");
+    }
+    if (isCompleted) {
+      dateEl.classList.add("is-completed");
+    }
+    if (isToday) {
+      dateEl.classList.add("is-today");
+    }
+    
+    // Date label
+    const label = document.createElement("div");
+    label.className = "habit-calendar-date-label";
+    label.textContent = date.getDate();
+    dateEl.appendChild(label);
+    
+    // Dot indicator
+    const dot = document.createElement("div");
+    dot.className = "habit-calendar-date-dot";
+    if (isCompleted) {
+      dot.style.backgroundColor = habit.color;
+      dot.style.color = habit.color;
+    }
+    dateEl.appendChild(dot);
+    
+    // Add click handler for past dates
+    if (!isFuture) {
+      dateEl.addEventListener("click", () => {
+        toggleDateCompletion(habit.id, dateString, dateEl, dot, habit.color);
       });
     }
+    
+    grid.appendChild(dateEl);
+    
+    // Move to next day
+    currentDate.setDate(currentDate.getDate() + 1);
   }
   
-  // Handle mouse up (end drag)
-  function handleMouseUp(e) {
-    if (!dragState.draggedCard) return;
-    
-    // Remove drag over state
-    if (dragState.currentDragOver) {
-      dragState.currentDragOver.classList.remove("is-drag-over");
-      dragState.currentDragOver = null;
-    }
-    
-    // Get placeholder position - this is where the card should snap to
-    const placeholder = dragState.placeholder;
-    const placeholderParent = placeholder ? placeholder.parentNode : null;
-    
-    if (placeholder && placeholderParent) {
-      // Drop: Snap instantly into place (no animation)
-      dragState.draggedCard.classList.remove("is-following-cursor");
-      
-      // Replace placeholder with the card in normal document flow immediately
-      placeholderParent.replaceChild(dragState.draggedCard, placeholder);
-      
-      // Remove ALL inline styles to restore normal flow positioning
-      dragState.draggedCard.classList.remove("is-dragging");
-      dragState.draggedCard.style.position = "";
-      dragState.draggedCard.style.width = "";
-      dragState.draggedCard.style.left = "";
-      dragState.draggedCard.style.top = "";
-      dragState.draggedCard.style.margin = "";
-      dragState.draggedCard.style.transform = "";
-      dragState.draggedCard.style.transition = "";
-      dragState.draggedCard.style.boxShadow = "";
-      dragState.draggedCard.style.pointerEvents = "";
-      
-      // Get final index in DOM after replacement
-      const finalIndex = Array.from(container.children).indexOf(dragState.draggedCard);
-      
-      // Reorder habits array to match new DOM order
-      if (finalIndex !== dragState.draggedIndex && finalIndex >= 0 && finalIndex < habits.length) {
-        const [movedHabit] = habits.splice(dragState.draggedIndex, 1);
-        habits.splice(finalIndex, 0, movedHabit);
-      }
-      
-      // Save to localStorage (always save, even if order didn't change)
-      saveHabitsToStorage(habits);
-      
-      // Clean up (don't re-render - card is already in correct position in DOM)
-      dragState.draggedCard = null;
-      dragState.draggedIndex = null;
-      dragState.placeholder = null;
-      dragState.dragOffset = { x: 0, y: 0 };
-    } else {
-      // No placeholder found, reset card immediately
-      dragState.draggedCard.classList.remove("is-dragging", "is-following-cursor");
-      dragState.draggedCard.style.position = "";
-      dragState.draggedCard.style.width = "";
-      dragState.draggedCard.style.left = "";
-      dragState.draggedCard.style.top = "";
-      dragState.draggedCard.style.margin = "";
-      dragState.draggedCard.style.transform = "";
-      dragState.draggedCard.style.transition = "";
-      dragState.draggedCard.style.boxShadow = "";
-      dragState.draggedCard.style.pointerEvents = "";
-      
-      // Clean up
-      dragState.draggedCard = null;
-      dragState.draggedIndex = null;
-      dragState.placeholder = null;
-      dragState.dragOffset = { x: 0, y: 0 };
-      
-      // Save state
-      saveHabitsToStorage(habits);
-    }
-    
-    // Remove global listeners (cleanup happens in setTimeout above)
-    document.removeEventListener("mousemove", handleMouseMove);
-    document.removeEventListener("mouseup", handleMouseUp);
+  // Fill remaining cells of the last month's week
+  const lastDate = new Date(endDate);
+  const lastDayOfWeek = lastDate.getDay();
+  const remainingDays = 6 - lastDayOfWeek;
+  for (let i = 0; i < remainingDays; i++) {
+    const empty = document.createElement("div");
+    grid.appendChild(empty);
   }
-  
-  // Handle mouse down on card (using event delegation)
-  container.addEventListener("mousedown", (e) => {
-    const card = e.target.closest(".habit-card");
-    if (!card) return;
-    
-    // Don't start drag if clicking on interactive elements
-    if (e.target.closest("button") || e.target.closest("input") || e.target.closest("textarea")) {
-      return;
-    }
-    
-    e.preventDefault();
-    
-    dragState.draggedCard = card;
-    dragState.draggedIndex = Array.from(container.children).indexOf(card);
-    const cardRect = card.getBoundingClientRect();
-    
-    dragState.dragOffset.x = e.clientX - cardRect.left;
-    dragState.dragOffset.y = e.clientY - cardRect.top;
-    
-    // Lift: Scale 1.02 + soft shadow - apply lift animation
-    card.classList.add("is-dragging");
-    card.classList.add("is-following-cursor");
-    
-    // Create placeholder
-    dragState.placeholder = createPlaceholder();
-    dragState.placeholder.style.height = cardRect.height + "px";
-    card.parentNode.insertBefore(dragState.placeholder, card);
-    
-    // Position dragged card - Drag: 1:1 follow, no easing (handled via inline styles)
-    card.style.position = "fixed";
-    card.style.width = cardRect.width + "px";
-    card.style.left = cardRect.left + "px";
-    card.style.top = cardRect.top + "px";
-    card.style.margin = "0";
-    card.style.pointerEvents = "none";
-    card.style.transition = "none"; // No easing during drag movement
-    
-    // Add global mouse move and up listeners
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-  });
 }
+
+function toggleDateCompletion(habitId, dateString, dateEl, dotEl, habitColor) {
+  const habit = habits.find(h => h.id === habitId);
+  if (!habit) return;
+  
+  // Ensure completedDates array exists
+  if (!habit.completedDates) {
+    habit.completedDates = [];
+  }
+  
+  // Toggle completion
+  const dateIndex = habit.completedDates.indexOf(dateString);
+  const isCompleted = dateIndex > -1;
+  
+  if (isCompleted) {
+    // Remove date
+    habit.completedDates.splice(dateIndex, 1);
+    dateEl.classList.remove("is-completed");
+    dotEl.style.transform = "scale(0)";
+    dotEl.style.opacity = "0";
+  } else {
+    // Add date
+    habit.completedDates.push(dateString);
+    dateEl.classList.add("is-completed");
+    dotEl.style.backgroundColor = habitColor;
+    dotEl.style.color = habitColor;
+    dotEl.style.transform = "scale(1)";
+    dotEl.style.opacity = "1";
+  }
+  
+  // Save to storage
+  saveHabitsToStorage(habits);
+  
+  // Save to Supabase if available
+  if (typeof window.saveHabitsSmart === "function") {
+    window.saveHabitsSmart(habits);
+  }
+  
+  // Update the main card's grid if it exists
+  const habitCard = document.querySelector(`.habit-card[data-habit-id="${habitId}"]`);
+  if (habitCard) {
+    const yearGrid = habitCard.querySelector('.habit-year-grid');
+    if (yearGrid) {
+      const square = yearGrid.querySelector(`.year-grid-square[data-date="${dateString}"]`);
+      if (square) {
+        const lightColor = lightenColorForCard(habitColor);
+        if (isCompleted) {
+          square.classList.remove("completed");
+          square.style.backgroundColor = lightColor;
+        } else {
+          square.classList.add("completed");
+          square.style.backgroundColor = habitColor;
+        }
+      }
+    }
+  }
+}
+
 

@@ -1020,7 +1020,7 @@ body {
   gap: 16px;
   position: relative;
   will-change: transform, opacity;
-  cursor: grab;
+  cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
   opacity: 0;
@@ -1077,83 +1077,6 @@ body {
   }
 }
 
-.habit-card:active {
-  cursor: grabbing;
-}
-
-/* Dragging state - Lift: Scale 1.02 + soft shadow */
-.habit-card.is-dragging {
-  position: fixed !important;
-  transform: scale(1.02);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  cursor: grabbing !important;
-  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
-  opacity: 1;
-  pointer-events: none;
-  margin: 0 !important;
-  width: var(--dragging-card-width, auto);
-  animation: none !important; /* Disable slide-up animation during drag */
-}
-
-/* Drag: 1:1 follow, no easing - handled via inline styles in JS */
-.habit-card.is-dragging.is-following-cursor {
-  transition: none; /* No easing during drag movement */
-}
-
-/* Drop target indicator */
-.habit-card.is-drag-over {
-  border-color: rgba(34, 111, 241, 0.4);
-  background-color: rgba(34, 111, 241, 0.02);
-}
-
-/* Prevent text selection during drag */
-.habit-card.is-dragging * {
-  pointer-events: none;
-}
-
-/* Respect reduced motion preference */
-@media (prefers-reduced-motion: reduce) {
-  .habit-card.is-dragging {
-    transform: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .habit-card.is-dragging {
-    transform: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-}
-
-/* Drop target indicator */
-.habit-card.is-drop-target {
-  border-color: rgba(34, 111, 241, 0.4);
-  background-color: rgba(34, 111, 241, 0.02);
-  transition: border-color 140ms ease-out, 
-              background-color 140ms ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .habit-card.is-drop-target {
-    border-color: rgba(34, 111, 241, 0.6);
-    background-color: rgba(34, 111, 241, 0.05);
-  }
-}
-
-/* Reorder: Other cards slide once - smooth, deliberate animation (Material/iOS-like) */
-.habit-card.is-reordering {
-  transition: transform 250ms cubic-bezier(0.2, 0, 0, 1);
-  will-change: transform;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .habit-card.is-reordering {
-    transition: none;
-  }
-}
 
 /* Hover actions container - positioned on left edge */
 .habit-card-hover-actions {
@@ -1406,6 +1329,317 @@ body {
   height: var(--day-size, 24px);
   border-radius: 4px;
   transition: background-color 0.2s ease;
+}
+
+/* Habit Calendar Modal */
+.habit-calendar-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.habit-calendar-modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.habit-calendar-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.habit-calendar-modal.is-open .habit-calendar-backdrop {
+  opacity: 1;
+}
+
+.habit-calendar-content {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  max-height: 85vh;
+  background: #ffffff;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.2, 0, 0, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.habit-calendar-modal.is-open .habit-calendar-content {
+  transform: translateY(0);
+}
+
+.habit-calendar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 24px;
+  border-bottom: 1px solid #e6e6e6;
+  flex-shrink: 0;
+}
+
+.habit-calendar-title-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.habit-calendar-icon-container {
+  width: 48px;
+  height: 48px;
+  border-radius: 73px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.habit-calendar-icon-container svg {
+  width: 24px;
+  height: 24px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #ffffff;
+}
+
+.habit-calendar-title-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.habit-calendar-title {
+  font-family: "Google Sans", sans-serif;
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 32px;
+  color: #2b2b2b;
+  margin: 0;
+}
+
+.habit-calendar-description {
+  font-family: "Google Sans", sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 20px;
+  color: #555555;
+  margin: 0;
+}
+
+.habit-calendar-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #555555;
+  transition: background-color 0.2s cubic-bezier(0.2, 0, 0, 1);
+  flex-shrink: 0;
+  margin-left: 16px;
+}
+
+.habit-calendar-close:hover {
+  background-color: #f4f4f4;
+}
+
+.habit-calendar-close:active {
+  background-color: #e6e6e6;
+}
+
+.habit-calendar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.habit-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.habit-calendar-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s cubic-bezier(0.2, 0, 0, 1),
+              transform 0.15s cubic-bezier(0.2, 0, 0, 1);
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.habit-calendar-date:active {
+  transform: scale(0.95);
+}
+
+.habit-calendar-date.is-future {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.habit-calendar-date.is-future:active {
+  transform: none;
+}
+
+.habit-calendar-date.is-future:hover {
+  background-color: transparent;
+}
+
+.habit-calendar-date:hover:not(.is-future) {
+  background-color: #f4f4f4;
+}
+
+.habit-calendar-date-label {
+  font-family: "Google Sans", sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  color: #2b2b2b;
+  text-align: center;
+}
+
+.habit-calendar-date.is-future .habit-calendar-date-label {
+  color: #999999;
+}
+
+.habit-calendar-date-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1),
+              opacity 0.2s cubic-bezier(0.2, 0, 0, 1);
+  transform: scale(0);
+  opacity: 0;
+}
+
+.habit-calendar-date.is-completed .habit-calendar-date-dot {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.habit-calendar-date.is-future .habit-calendar-date-dot {
+  opacity: 0.3;
+}
+
+.habit-calendar-date.is-today {
+  position: relative;
+}
+
+.habit-calendar-date.is-today::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #2b2b2b;
+  pointer-events: none;
+}
+
+.habit-calendar-date.is-today.is-completed::before {
+  border-color: currentColor;
+}
+
+/* Custom scrollbar for modal */
+.habit-calendar-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.habit-calendar-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.habit-calendar-body::-webkit-scrollbar-thumb {
+  background: #bfbfbf;
+  border-radius: 4px;
+}
+
+.habit-calendar-body::-webkit-scrollbar-thumb:hover {
+  background: #959595;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .habit-calendar-modal,
+  .habit-calendar-backdrop,
+  .habit-calendar-content,
+  .habit-calendar-date,
+  .habit-calendar-date-dot {
+    transition: none;
+  }
+  
+  .habit-calendar-modal.is-open .habit-calendar-content {
+    transform: translateY(0);
+  }
+  
+  .habit-calendar-date:active {
+    transform: none;
+  }
+}
+
+/* Month labels for calendar */
+.habit-calendar-month-label {
+  grid-column: 1 / span 7;
+  font-family: "Google Sans", sans-serif;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 24px;
+  color: #2b2b2b;
+  padding: 16px 0 8px 0;
+  text-align: left;
+}
+
+.habit-calendar-weekday-label {
+  font-family: "Google Sans", sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 16px;
+  color: #999999;
+  text-align: center;
+  padding: 0 4px 8px 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* Year grid square completed state - background color set dynamically via inline style */

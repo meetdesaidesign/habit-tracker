@@ -220,6 +220,32 @@
           </div>
         </div>
       </div>
+
+      <!-- Habit Calendar Modal -->
+      <div class="habit-calendar-modal" id="habitCalendarModal">
+        <div class="habit-calendar-backdrop"></div>
+        <div class="habit-calendar-content">
+          <div class="habit-calendar-header">
+            <div class="habit-calendar-title-container">
+              <div class="habit-calendar-icon-container" id="modalHabitIcon"></div>
+              <div class="habit-calendar-title-info">
+                <h2 class="habit-calendar-title" id="modalHabitTitle"></h2>
+                <p class="habit-calendar-description" id="modalHabitDescription"></p>
+              </div>
+            </div>
+            <button class="habit-calendar-close" id="closeCalendarModal" aria-label="Close">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="habit-calendar-body">
+            <div class="habit-calendar-grid" id="habitCalendarGrid">
+              <!-- Calendar dates will be rendered here via JavaScript -->
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     
      
