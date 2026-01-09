@@ -632,6 +632,55 @@ document.addEventListener("DOMContentLoaded", async function () {
       closeCalendarModal();
     }
   });
+
+  // Share button handler
+  const shareButton = document.getElementById("shareHabitButton");
+  if (shareButton) {
+    shareButton.addEventListener("click", () => {
+      const modal = document.getElementById("habitCalendarModal");
+      if (modal && modal.classList.contains("is-open")) {
+        // Get the current habit from the modal
+        const habitId = modal.getAttribute("data-current-habit-id");
+        if (habitId) {
+          const habit = habits.find(h => h.id === habitId);
+          if (habit) {
+            openShareMenu(habit);
+          }
+        }
+      }
+    });
+  }
+
+  // Close share menu handler
+  const closeShareMenuBtn = document.getElementById("closeShareMenu");
+  const shareMenu = document.getElementById("shareMenu");
+  if (closeShareMenuBtn) {
+    closeShareMenuBtn.addEventListener("click", closeShareMenu);
+  }
+  if (shareMenu) {
+    const backdrop = shareMenu.querySelector(".share-menu-backdrop");
+    if (backdrop) {
+      backdrop.addEventListener("click", closeShareMenu);
+    }
+  }
+
+  // Share option handlers
+  const shareOptions = document.querySelectorAll(".share-option");
+  shareOptions.forEach(option => {
+    option.addEventListener("click", () => {
+      const platform = option.getAttribute("data-platform");
+      const modal = document.getElementById("habitCalendarModal");
+      if (modal && modal.classList.contains("is-open")) {
+        const habitId = modal.getAttribute("data-current-habit-id");
+        if (habitId) {
+          const habit = habits.find(h => h.id === habitId);
+          if (habit) {
+            shareHabit(habit, platform);
+          }
+        }
+      }
+    });
+  });
 });
 
 // Initialize app - loads habits from localStorage, then renders
@@ -967,6 +1016,17 @@ function renderHabitCard(habit) {
   checkButton.appendChild(checkIcon);
   
   checkButton.addEventListener("click", () => {
+    // Trigger bouncy animation
+    checkButton.classList.remove("animate-bounce");
+    // Force reflow to restart animation
+    void checkButton.offsetWidth;
+    checkButton.classList.add("animate-bounce");
+    
+    // Remove animation class after animation completes
+    setTimeout(() => {
+      checkButton.classList.remove("animate-bounce");
+    }, 500);
+    
     markHabitCompletedToday(habit.id);
   });
   
@@ -1226,9 +1286,15 @@ function createHoverActions(habitId) {
 }
 
 // Calendar Modal Functions
+let currentHabitForSharing = null;
+
 function openCalendarModal(habit) {
   const modal = document.getElementById("habitCalendarModal");
   if (!modal) return;
+  
+  // Store current habit for sharing
+  currentHabitForSharing = habit;
+  modal.setAttribute("data-current-habit-id", habit.id);
   
   // Set habit info in modal
   const iconContainer = document.getElementById("modalHabitIcon");
@@ -1432,6 +1498,351 @@ function toggleDateCompletion(habitId, dateString, dateEl, dotEl, habitColor) {
       }
     }
   }
+}
+
+// Share Menu Functions
+function openShareMenu(habit) {
+  const shareMenu = document.getElementById("shareMenu");
+  if (shareMenu) {
+    shareMenu.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+  }
+}
+
+function closeShareMenu() {
+  const shareMenu = document.getElementById("shareMenu");
+  if (shareMenu) {
+    shareMenu.classList.add("hidden");
+    document.body.style.overflow = "";
+  }
+}
+
+// Calculate habit progress
+function calculateHabitProgress(habit) {
+  const daysInYear = getDaysInYear();
+  const completedCount = habit.completedDates ? habit.completedDates.length : 0;
+  return {
+    completed: completedCount,
+    total: daysInYear,
+    percentage: Math.round((completedCount / daysInYear) * 100)
+  };
+}
+
+// Generate shareable image
+async function generateShareImage(habit, platform) {
+  // Platform-specific dimensions
+  const dimensions = {
+    x: { width: 1200, height: 675 }, // 16:9 aspect ratio
+    instagram: { width: 1080, height: 1920 }, // 9:16 story format
+    whatsapp: { width: 1080, height: 1920 } // 9:16 story format
+  };
+
+  const { width, height } = dimensions[platform] || dimensions.x;
+  const progress = calculateHabitProgress(habit);
+
+  // Create a canvas for the shareable image
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+
+  // Background gradient based on habit color
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  const rgb = hexToRgb(habit.color);
+  if (rgb) {
+    gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)`);
+    gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.05)`);
+  }
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  // Add white background for content area
+  const padding = platform === 'x' ? 80 : 60;
+  const contentWidth = width - (padding * 2);
+  const contentHeight = height - (padding * 2);
+  
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(padding, padding, contentWidth, contentHeight);
+
+  // Add habit icon
+  const iconSize = platform === 'x' ? 120 : 100;
+  const iconX = width / 2;
+  const iconY = padding + 80;
+  
+  ctx.fillStyle = habit.color;
+  ctx.beginPath();
+  ctx.arc(iconX, iconY, iconSize / 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Add habit title
+  ctx.fillStyle = "#2b2b2b";
+  ctx.font = `bold ${platform === 'x' ? '48' : '40'}px "Google Sans", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const titleY = iconY + iconSize / 2 + 40;
+  ctx.fillText(habit.title, iconX, titleY);
+
+  // Add progress text
+  ctx.fillStyle = "#555555";
+  ctx.font = `${platform === 'x' ? '32' : '28'}px "Google Sans", sans-serif`;
+  const progressText = `My ${habit.title} progress: ${progress.completed}/${progress.total} completed`;
+  const progressY = titleY + (platform === 'x' ? 60 : 50);
+  ctx.fillText(progressText, iconX, progressY);
+
+  // Add percentage
+  ctx.fillStyle = habit.color;
+  ctx.font = `bold ${platform === 'x' ? '72' : '64'}px "Google Sans", sans-serif`;
+  const percentageY = progressY + (platform === 'x' ? 80 : 70);
+  ctx.fillText(`${progress.percentage}%`, iconX, percentageY);
+
+  // Add calendar grid visualization
+  const gridSize = platform === 'x' ? 8 : 6;
+  const gridPadding = platform === 'x' ? 100 : 80;
+  const gridStartY = percentageY + (platform === 'x' ? 120 : 100);
+  const gridCols = 52;
+  const gridRows = 7;
+  const squareSize = Math.min((contentWidth - gridPadding * 2) / gridCols, gridSize);
+  const gridWidth = squareSize * gridCols;
+  const gridX = (width - gridWidth) / 2;
+
+  const lightColor = lightenColorForCard(habit.color);
+  const lightRgb = hexToRgb(lightColor);
+  const habitRgb = hexToRgb(habit.color);
+
+  // Draw grid squares - show actual completion pattern
+  const daysInYear = getDaysInYear();
+  const year = new Date().getFullYear();
+  const startDate = new Date(year, 0, 1);
+  
+  for (let dayIndex = 0; dayIndex < Math.min(daysInYear, gridCols * gridRows); dayIndex++) {
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + dayIndex);
+    const dateString = getDateString(date);
+    const isCompleted = habit.completedDates && habit.completedDates.includes(dateString);
+    
+    const col = dayIndex % gridCols;
+    const row = Math.floor(dayIndex / gridCols);
+    const x = gridX + col * squareSize;
+    const y = gridStartY + row * squareSize;
+    const gap = 2;
+    
+    if (isCompleted && habitRgb) {
+      ctx.fillStyle = habit.color;
+    } else if (lightRgb) {
+      ctx.fillStyle = lightColor;
+    } else {
+      ctx.fillStyle = "#f4f4f4";
+    }
+    
+    ctx.fillRect(x + gap / 2, y + gap / 2, squareSize - gap, squareSize - gap);
+  }
+
+  // Add description at bottom (only for X)
+  if (habit.description && platform === 'x') {
+    ctx.fillStyle = "#999999";
+    ctx.font = "24px 'Google Sans', sans-serif";
+    ctx.textAlign = "center";
+    const descY = gridStartY + (gridRows * squareSize) + 60;
+    const maxWidth = contentWidth - 40;
+    const words = habit.description.split(' ');
+    let line = '';
+    let lineY = descY;
+    
+    for (let i = 0; i < words.length; i++) {
+      const testLine = line + words[i] + ' ';
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > maxWidth && i > 0) {
+        ctx.fillText(line, iconX, lineY);
+        line = words[i] + ' ';
+        lineY += 32;
+      } else {
+        line = testLine;
+      }
+    }
+    ctx.fillText(line, iconX, lineY);
+  }
+
+  return canvas.toDataURL("image/png");
+}
+
+// Upload image to imgur (for X/Twitter sharing fallback)
+async function uploadImageToImgur(imageDataUrl) {
+  try {
+    // Convert data URL to blob
+    const response = await fetch(imageDataUrl);
+    const blob = await response.blob();
+    
+    // Create FormData
+    const formData = new FormData();
+    formData.append('image', blob);
+    
+    // Upload to Imgur (anonymous upload, no auth required)
+    // Using a public client ID that works for anonymous uploads
+    const uploadResponse = await fetch('https://api.imgur.com/3/image', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Client-ID 546c25a59c58ad7' // Public anonymous client ID for basic uploads
+      },
+      body: formData
+    });
+    
+    if (!uploadResponse.ok) {
+      const errorData = await uploadResponse.json();
+      throw new Error(errorData.data?.error || 'Imgur upload failed');
+    }
+    
+    const data = await uploadResponse.json();
+    if (data.success && data.data && data.data.link) {
+      return data.data.link; // Returns the image URL
+    } else {
+      throw new Error('Invalid response from Imgur');
+    }
+  } catch (error) {
+    console.error('Error uploading to Imgur:', error);
+    throw error;
+  }
+}
+
+// Share habit to platform
+async function shareHabit(habit, platform) {
+  try {
+    // Close share menu
+    closeShareMenu();
+
+    // Show loading indicator (optional - you could add a loading spinner here)
+    const shareButton = document.querySelector(`.share-option[data-platform="${platform}"]`);
+    if (shareButton) {
+      shareButton.style.opacity = '0.6';
+      shareButton.style.pointerEvents = 'none';
+    }
+
+    // Generate image
+    const imageDataUrl = await generateShareImage(habit, platform);
+    const progress = calculateHabitProgress(habit);
+    const caption = `My ${habit.title} progress: ${progress.completed}/${progress.total} completed`;
+
+    // Convert data URL to blob
+    const response = await fetch(imageDataUrl);
+    const blob = await response.blob();
+    const file = new File([blob], `habit-${habit.title}-${Date.now()}.png`, { type: "image/png" });
+
+    // Share based on platform
+    if (platform === "x") {
+      // X/Twitter: Try Web Share API first, then upload to Imgur and open Twitter
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: caption,
+            text: caption,
+            files: [file]
+          });
+          return;
+        } catch (err) {
+          console.log("Web Share API failed for X, trying Imgur upload");
+        }
+      }
+      
+      // Fallback: Upload to Imgur and open Twitter with image link
+      try {
+        const imageUrl = await uploadImageToImgur(imageDataUrl);
+        const tweetText = `${caption}\n\n${imageUrl}`;
+        const xUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+        window.open(xUrl, "_blank");
+      } catch (err) {
+        // If Imgur fails, download and open Twitter with text only
+        downloadImage(imageDataUrl, `habit-${habit.title}.png`);
+        const xUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`;
+        window.open(xUrl, "_blank");
+        alert("Image downloaded! You can attach it manually to your tweet.");
+      }
+      
+    } else if (platform === "instagram") {
+      // Instagram: Use Web Share API if available, otherwise download
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: caption,
+            text: caption,
+            files: [file]
+          });
+          return;
+        } catch (err) {
+          console.log("Web Share API failed for Instagram");
+        }
+      }
+      
+      // Fallback: Download image
+      downloadImage(imageDataUrl, `habit-${habit.title}-instagram-story.png`);
+      // Try to open Instagram (works on mobile)
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        window.location.href = `instagram://camera`;
+      } else {
+        alert("Image downloaded! Open Instagram and share it as a story.");
+      }
+      
+    } else if (platform === "whatsapp") {
+      // WhatsApp: Use Web Share API if available (best option - works on mobile and some desktop)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: caption,
+            text: caption,
+            files: [file]
+          });
+          return;
+        } catch (err) {
+          // User cancelled or error - continue to fallback
+          console.log("Web Share API cancelled or failed for WhatsApp");
+        }
+      }
+      
+      // Fallback: Open WhatsApp with text (image will need to be attached manually)
+      const whatsappText = `${caption}`;
+      
+      // For mobile, use WhatsApp app URL
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        window.location.href = `whatsapp://send?text=${encodeURIComponent(whatsappText)}`;
+        // Download image so user can attach it
+        setTimeout(() => {
+          downloadImage(imageDataUrl, `habit-${habit.title}-whatsapp.png`);
+        }, 500);
+      } else {
+        // Desktop: Open WhatsApp Web
+        window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(whatsappText)}`, "_blank");
+        // Download image so user can attach it
+        setTimeout(() => {
+          downloadImage(imageDataUrl, `habit-${habit.title}-whatsapp.png`);
+        }, 500);
+      }
+    }
+    
+    // Reset button state
+    if (shareButton) {
+      shareButton.style.opacity = '1';
+      shareButton.style.pointerEvents = 'auto';
+    }
+    
+  } catch (error) {
+    console.error("Error sharing habit:", error);
+    alert("Failed to share. Please try again.");
+    
+    // Reset button state
+    const shareButton = document.querySelector(`.share-option[data-platform="${platform}"]`);
+    if (shareButton) {
+      shareButton.style.opacity = '1';
+      shareButton.style.pointerEvents = 'auto';
+    }
+  }
+}
+
+// Helper function to download image
+function downloadImage(dataUrl, filename) {
+  const link = document.createElement("a");
+  link.download = filename;
+  link.href = dataUrl;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 
