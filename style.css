@@ -1749,19 +1749,24 @@ body {
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  z-index: 0;
 }
 
 .share-menu-content {
   position: relative;
   width: 100%;
   max-width: 400px;
+  max-height: 90vh;
   background: #ffffff;
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
   transform: translateY(100%);
   transition: transform 0.4s cubic-bezier(0.2, 0, 0, 1);
   padding: 24px;
-  z-index: 1;
+  z-index: 10;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .share-menu:not(.hidden) .share-menu-content {
@@ -1776,6 +1781,23 @@ body {
   color: #2b2b2b;
   margin: 0 0 20px 0;
   text-align: center;
+}
+
+.share-menu-preview {
+  width: 100%;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f4f4f4;
+  border: 1px solid #e6e6e6;
+}
+
+.share-preview-image {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  display: block;
+  object-fit: cover;
 }
 
 .share-menu-options {
@@ -1797,6 +1819,9 @@ body {
   transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
   width: 100%;
   text-align: left;
+  position: relative;
+  z-index: 11;
+  pointer-events: auto;
 }
 
 .share-option:hover {
@@ -1819,6 +1844,11 @@ body {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  pointer-events: none;
+}
+
+.share-option-icon svg {
+  pointer-events: none;
 }
 
 .x-icon {
@@ -1842,6 +1872,7 @@ body {
   font-size: 16px;
   line-height: 24px;
   color: #2b2b2b;
+  pointer-events: none;
 }
 
 .share-menu-close {

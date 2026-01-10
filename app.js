@@ -1501,9 +1501,24 @@ function toggleDateCompletion(habitId, dateString, dateEl, dotEl, habitColor) {
 }
 
 // Share Menu Functions
-function openShareMenu(habit) {
+async function openShareMenu(habit) {
   const shareMenu = document.getElementById("shareMenu");
   if (shareMenu) {
+    // Generate preview image in 16:9 ratio (X platform format)
+    const previewImage = document.getElementById("shareMenuPreview");
+    if (previewImage) {
+      try {
+        const previewDataUrl = await generateShareImage(habit, "x");
+        previewImage.src = previewDataUrl;
+        previewImage.style.display = "block";
+      } catch (error) {
+        console.error("Error generating preview:", error);
+        if (previewImage) {
+          previewImage.style.display = "none";
+        }
+      }
+    }
+    
     shareMenu.classList.remove("hidden");
     document.body.style.overflow = "hidden";
   }
@@ -1595,46 +1610,70 @@ async function generateShareImage(habit, platform) {
   const percentageY = progressY + (platform === 'x' ? 80 : 70);
   ctx.fillText(`${progress.percentage}%`, iconX, percentageY);
 
-  // Add calendar grid visualization
-  const gridSize = platform === 'x' ? 8 : 6;
-  const gridPadding = platform === 'x' ? 100 : 80;
-  const gridStartY = percentageY + (platform === 'x' ? 120 : 100);
-  const gridCols = 52;
+  // Add calendar grid visualization - matching the card's dots chart
+  const daysInYear = getDaysInYear();
+  const gridCols = Math.ceil(daysInYear / 7); // Same calculation as the card
   const gridRows = 7;
-  const squareSize = Math.min((contentWidth - gridPadding * 2) / gridCols, gridSize);
-  const gridWidth = squareSize * gridCols;
+  const gap = 4; // Same gap as the card
+  
+  // Calculate grid size to fit nicely in the available space
+  const gridPadding = platform === 'x' ? 60 : 40;
+  const availableWidth = contentWidth - (gridPadding * 2);
+  const maxSquareSize = platform === 'x' ? 12 : 10;
+  const squareSize = Math.min((availableWidth - (gridCols - 1) * gap) / gridCols, maxSquareSize);
+  const gridWidth = (squareSize * gridCols) + ((gridCols - 1) * gap);
+  const gridHeight = (squareSize * gridRows) + ((gridRows - 1) * gap);
   const gridX = (width - gridWidth) / 2;
+  const gridStartY = percentageY + (platform === 'x' ? 100 : 80);
 
   const lightColor = lightenColorForCard(habit.color);
-  const lightRgb = hexToRgb(lightColor);
-  const habitRgb = hexToRgb(habit.color);
 
-  // Draw grid squares - show actual completion pattern
-  const daysInYear = getDaysInYear();
+  // Draw grid squares - show actual completion pattern (matching card layout)
   const year = new Date().getFullYear();
   const startDate = new Date(year, 0, 1);
   
-  for (let dayIndex = 0; dayIndex < Math.min(daysInYear, gridCols * gridRows); dayIndex++) {
+  // Draw all days of the year in the same order as the card (Jan 1 → Dec 31)
+  for (let dayIndex = 0; dayIndex < daysInYear; dayIndex++) {
     const date = new Date(startDate);
     date.setDate(date.getDate() + dayIndex);
     const dateString = getDateString(date);
     const isCompleted = habit.completedDates && habit.completedDates.includes(dateString);
     
-    const col = dayIndex % gridCols;
-    const row = Math.floor(dayIndex / gridCols);
-    const x = gridX + col * squareSize;
-    const y = gridStartY + row * squareSize;
-    const gap = 2;
+    // Calculate position: column by day index, row by week
+    const col = Math.floor(dayIndex / gridRows); // Column (week)
+    const row = dayIndex % gridRows; // Row (day of week)
+    const x = gridX + col * (squareSize + gap);
+    const y = gridStartY + row * (squareSize + gap);
     
-    if (isCompleted && habitRgb) {
+    // Set color based on completion status
+    if (isCompleted) {
       ctx.fillStyle = habit.color;
-    } else if (lightRgb) {
-      ctx.fillStyle = lightColor;
     } else {
-      ctx.fillStyle = "#f4f4f4";
+      ctx.fillStyle = lightColor;
     }
     
-    ctx.fillRect(x + gap / 2, y + gap / 2, squareSize - gap, squareSize - gap);
+    // Draw rounded square (matching card style with border-radius: 4px)
+    const radius = 4;
+    if (ctx.roundRect) {
+      // Use modern roundRect if available
+      ctx.beginPath();
+      ctx.roundRect(x, y, squareSize, squareSize, radius);
+      ctx.fill();
+    } else {
+      // Fallback: draw rounded rectangle manually
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + squareSize - radius, y);
+      ctx.quadraticCurveTo(x + squareSize, y, x + squareSize, y + radius);
+      ctx.lineTo(x + squareSize, y + squareSize - radius);
+      ctx.quadraticCurveTo(x + squareSize, y + squareSize, x + squareSize - radius, y + squareSize);
+      ctx.lineTo(x + radius, y + squareSize);
+      ctx.quadraticCurveTo(x, y + squareSize, x, y + squareSize - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
+    }
   }
 
   // Add description at bottom (only for X)
@@ -1642,7 +1681,7 @@ async function generateShareImage(habit, platform) {
     ctx.fillStyle = "#999999";
     ctx.font = "24px 'Google Sans', sans-serif";
     ctx.textAlign = "center";
-    const descY = gridStartY + (gridRows * squareSize) + 60;
+    const descY = gridStartY + gridHeight + 60;
     const maxWidth = contentWidth - 40;
     const words = habit.description.split(' ');
     let line = '';
@@ -1708,13 +1747,6 @@ async function shareHabit(habit, platform) {
   try {
     // Close share menu
     closeShareMenu();
-
-    // Show loading indicator (optional - you could add a loading spinner here)
-    const shareButton = document.querySelector(`.share-option[data-platform="${platform}"]`);
-    if (shareButton) {
-      shareButton.style.opacity = '0.6';
-      shareButton.style.pointerEvents = 'none';
-    }
 
     // Generate image
     const imageDataUrl = await generateShareImage(habit, platform);
@@ -1816,22 +1848,9 @@ async function shareHabit(habit, platform) {
       }
     }
     
-    // Reset button state
-    if (shareButton) {
-      shareButton.style.opacity = '1';
-      shareButton.style.pointerEvents = 'auto';
-    }
-    
   } catch (error) {
     console.error("Error sharing habit:", error);
     alert("Failed to share. Please try again.");
-    
-    // Reset button state
-    const shareButton = document.querySelector(`.share-option[data-platform="${platform}"]`);
-    if (shareButton) {
-      shareButton.style.opacity = '1';
-      shareButton.style.pointerEvents = 'auto';
-    }
   }
 }
 
